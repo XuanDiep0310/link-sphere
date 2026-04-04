@@ -1,0 +1,85 @@
+<div class="min-h-screen bg-slate-50 dark:bg-slate-900 flex flex-col items-center justify-center p-4">
+  <!-- Register Card -->
+  <div class="w-full max-w-[440px] bg-white dark:bg-slate-800 rounded-3xl shadow-2xl p-8 md:p-12 transition-all duration-300 border border-slate-100 dark:border-slate-700">
+    
+    <!-- Logo -->
+    <div class="flex justify-center mb-8">
+      <div class="w-16 h-16 bg-primary-600 rounded-2xl flex items-center justify-center shadow-lg transform hover:rotate-6 transition cursor-pointer overflow-hidden">
+         <img src="assets/images/logo.png" alt="Logo" class="w-full h-full object-cover">
+      </div>
+    </div>
+
+    <!-- Header -->
+    <div class="text-center space-y-2 mb-10">
+      <h1 class="text-3xl font-extrabold text-slate-900 dark:text-white tracking-tight">Create Account</h1>
+      <p class="text-slate-500 dark:text-slate-400 font-medium">Sign up to start connecting with others</p>
+    </div>
+
+    <!-- Form -->
+    <form [formGroup]="registerForm" (ngSubmit)="onSubmit()" class="space-y-4">
+      <div class="space-y-1">
+        <label class="text-sm font-bold text-slate-700 dark:text-slate-300 ml-1">Full Name</label>
+        <input 
+          type="text" 
+          formControlName="fullName"
+          placeholder="Enter your full name"
+          class="w-full bg-slate-50 dark:bg-slate-700/50 border-0 focus:ring-2 focus:ring-primary-500 rounded-2xl px-5 py-3.5 text-slate-900 dark:text-white placeholder-slate-400 dark:placeholder-slate-500 transition-all outline-none"
+        >
+      </div>
+
+      <div class="space-y-1">
+        <label class="text-sm font-bold text-slate-700 dark:text-slate-300 ml-1">Username</label>
+        <input 
+          type="text" 
+          formControlName="username"
+          placeholder="Choose a username"
+          class="w-full bg-slate-50 dark:bg-slate-700/50 border-0 focus:ring-2 focus:ring-primary-500 rounded-2xl px-5 py-3.5 text-slate-900 dark:text-white placeholder-slate-400 dark:placeholder-slate-500 transition-all outline-none"
+        >
+      </div>
+
+      <div class="space-y-1">
+        <label class="text-sm font-bold text-slate-700 dark:text-slate-300 ml-1">Email</label>
+        <input 
+          type="email" 
+          formControlName="email"
+          placeholder="Enter your email"
+          class="w-full bg-slate-50 dark:bg-slate-700/50 border-0 focus:ring-2 focus:ring-primary-500 rounded-2xl px-5 py-3.5 text-slate-900 dark:text-white placeholder-slate-400 dark:placeholder-slate-500 transition-all outline-none"
+        >
+      </div>
+
+      <div class="space-y-1">
+        <label class="text-sm font-bold text-slate-700 dark:text-slate-300 ml-1">Password</label>
+        <input 
+          type="password" 
+          formControlName="password"
+          placeholder="Create a password"
+          class="w-full bg-slate-50 dark:bg-slate-700/50 border-0 focus:ring-2 focus:ring-primary-500 rounded-2xl px-5 py-3.5 text-slate-900 dark:text-white placeholder-slate-400 dark:placeholder-slate-500 transition-all outline-none"
+        >
+      </div>
+
+      <!-- Sign Up Button -->
+      <button 
+        type="submit"
+        [disabled]="isLoading() || registerForm.invalid"
+        class="w-full bg-primary-600 hover:bg-primary-700 text-white font-bold py-4 rounded-2xl shadow-lg shadow-primary-500/30 transform hover:scale-[1.02] active:scale-95 transition-all disabled:opacity-50 disabled:cursor-not-allowed mt-6"
+      >
+        <span *ngIf="!isLoading()">Sign Up</span>
+        <span *ngIf="isLoading()" class="flex items-center justify-center">
+          <svg class="animate-spin -ml-1 mr-3 h-5 w-5 text-white" fill="none" viewBox="0 0 24 24">
+            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+            <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+          </svg>
+          Creating Account...
+        </span>
+      </button>
+    </form>
+
+    <!-- Footer Link -->
+    <div class="mt-8 text-center">
+      <p class="text-sm font-medium text-slate-500 dark:text-slate-400">
+        Already have an account? 
+        <a routerLink="/auth/login" class="text-primary-600 hover:text-primary-500 font-bold ml-1 transition-colors">Sign in</a>
+      </p>
+    </div>
+  </div>
+</div>

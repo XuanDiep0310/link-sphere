@@ -1,0 +1,70 @@
+<div class="min-h-screen bg-slate-50 dark:bg-slate-900 flex flex-col items-center justify-center p-4">
+  <!-- Login Card -->
+  <div class="w-full max-w-[440px] bg-white dark:bg-slate-800 rounded-3xl shadow-2xl p-8 md:p-12 transition-all duration-300 border border-slate-100 dark:border-slate-700">
+    
+    <!-- Logo -->
+    <div class="flex justify-center mb-8">
+      <div class="w-16 h-16 bg-primary-600 rounded-2xl flex items-center justify-center shadow-lg transform hover:rotate-6 transition cursor-pointer overflow-hidden">
+         <img src="assets/images/logo.png" alt="Logo" class="w-full h-full object-cover">
+      </div>
+    </div>
+
+    <!-- Header -->
+    <div class="text-center space-y-2 mb-10">
+      <h1 class="text-3xl font-extrabold text-slate-900 dark:text-white tracking-tight">Welcome Back</h1>
+      <p class="text-slate-500 dark:text-slate-400 font-medium">Sign in to your account to continue</p>
+    </div>
+
+    <!-- Form -->
+    <form [formGroup]="loginForm" (ngSubmit)="onSubmit()" class="space-y-6">
+      <div class="space-y-2">
+        <label class="text-sm font-bold text-slate-700 dark:text-slate-300 ml-1">Email or Username</label>
+        <div class="relative group">
+          <input 
+            type="text" 
+            formControlName="emailOrUsername"
+            placeholder="Enter your email or username"
+            class="w-full bg-slate-50 dark:bg-slate-700/50 border-0 focus:ring-2 focus:ring-primary-500 rounded-2xl px-5 py-4 text-slate-900 dark:text-white placeholder-slate-400 dark:placeholder-slate-500 transition-all outline-none"
+          >
+        </div>
+      </div>
+
+      <div class="space-y-2">
+        <label class="text-sm font-bold text-slate-700 dark:text-slate-300 ml-1">Password</label>
+        <div class="relative group">
+          <input 
+            type="password" 
+            formControlName="password"
+            placeholder="Enter your password"
+            class="w-full bg-slate-50 dark:bg-slate-700/50 border-0 focus:ring-2 focus:ring-primary-500 rounded-2xl px-5 py-4 text-slate-900 dark:text-white placeholder-slate-400 dark:placeholder-slate-500 transition-all outline-none"
+          >
+        </div>
+      </div>
+
+      <!-- Sign In Button -->
+      <button 
+        type="submit"
+        [disabled]="isLoading() || loginForm.invalid"
+        class="w-full bg-primary-600 hover:bg-primary-700 text-white font-bold py-4 rounded-2xl shadow-lg shadow-primary-500/30 transform hover:scale-[1.02] active:scale-95 transition-all disabled:opacity-50 disabled:cursor-not-allowed mt-4"
+      >
+        <span *ngIf="!isLoading()">Sign In</span>
+        <span *ngIf="isLoading()" class="flex items-center justify-center">
+          <svg class="animate-spin -ml-1 mr-3 h-5 w-5 text-white" fill="none" viewBox="0 0 24 24">
+            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+            <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+          </svg>
+          Processing...
+        </span>
+      </button>
+    </form>
+
+    <!-- Footer Links -->
+    <div class="mt-8 text-center space-y-4">
+      <a href="javascript:void(0)" class="text-sm font-semibold text-primary-600 hover:text-primary-500 transition-colors">Forgot password?</a>
+      <p class="text-sm font-medium text-slate-500 dark:text-slate-400">
+        Don't have an account? 
+        <a routerLink="/auth/register" class="text-primary-600 hover:text-primary-500 font-bold ml-1 transition-colors">Sign up</a>
+      </p>
+    </div>
+  </div>
+</div>
