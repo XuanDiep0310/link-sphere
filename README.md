@@ -1,27 +1,58 @@
-# LinkSphere
+# Link Sphere 🚀
 
-This project was generated with [Angular CLI](https://github.com/angular/angular-cli) version 16.2.16.
+Modern social media platform architected for scalability, performance, and premium user experience.
 
-## Development server
+## 🛠️ Technology Stack
+- **Framework**: [Angular 16](https://angular.io/) (Standalone Components)
+- **State Management**: [Angular Signals](https://angular.io/guide/signals) (Developer Preview in v16)
+- **Styling**: [Tailwind CSS v3](https://tailwindcss.com/) & [Sass/SCSS](https://sass-lang.com/)
+- **API Flow**: RxJS + HttpClient with Functional Interceptors
+- **Architecture**: Feature-oriented & Clean Architecture
+- **CI/CD**: GitHub Actions + Vercel Deployment
 
-Run `ng serve` for a dev server. Navigate to `http://localhost:4200/`. The application will automatically reload if you change any of the source files.
+## 📂 Architecture Overview
+Following **Feature-based architecture** and **Clean Architecture** principles:
+- `src/app/core`: Singleton services, guards, and interceptors.
+- `src/app/shared`: Reusable UI components, pipes, and directives.
+- `src/app/features`: Domain-specific features (Auth, Profile, Feed, etc.).
+- `src/environments`: Environment-specific configurations.
 
-## Code scaffolding
+## 🚀 Getting Started
 
-Run `ng generate component component-name` to generate a new component. You can also use `ng generate directive|pipe|service|class|guard|interface|enum|module`.
+### Prerequisites
+- Node.js (v18+)
+- npm (v9+)
+- Angular CLI (`npm install -g @angular/cli@16`)
 
-## Build
+### Installation
+1. Clone the repository:
+   ```bash
+   git clone https://github.com/your-username/link-sphere.git
+   ```
+2. Install dependencies:
+   ```bash
+   npm install
+   ```
+3. Start development server:
+   ```bash
+   npm run start
+   ```
+   Visit `http://localhost:4200` in your browser.
 
-Run `ng build` to build the project. The build artifacts will be stored in the `dist/` directory.
+## 🚢 CI/CD & Deployment
+This project is configured with **GitHub Actions** for automatic deployment to **Vercel**.
 
-## Running unit tests
+### Setup Secrets
+In your GitHub Repository, navigate to `Settings -> Secrets and variables -> Actions` and add:
+- `VERCEL_TOKEN`: Your Vercel account token.
+- `VERCEL_ORG_ID`: `team_A86nqmkAgJYHh4MW2KwZwwKo`
+- `VERCEL_PROJECT_ID`: `prj_gG937izUQGqszviVoCs1jwfGzGYQ`
 
-Run `ng test` to execute the unit tests via [Karma](https://karma-runner.github.io).
+Every push to `main` or `develop` will automatically trigger a new deployment.
 
-## Running end-to-end tests
+## 🎨 UI/UX Design System
+- **Typography**: Inter (Google Fonts)
+- **Color Palette**: Custom Primary Blue (Tailwind extensions)
+- **Support**: Responsive Design & Dark Mode support built-in.
 
-Run `ng e2e` to execute the end-to-end tests via a platform of your choice. To use this command, you need to first add a package that implements end-to-end testing capabilities.
-
-## Further help
-
-To get more help on the Angular CLI use `ng help` or go check out the [Angular CLI Overview and Command Reference](https://angular.io/cli) page.
+---
