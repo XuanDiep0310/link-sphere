@@ -1,10 +1,14 @@
 export interface User {
-  id: string;
+  id: string | number;
   email: string;
   username: string;
+  bio?: string;
+  avatar?: string;
   avatarUrl?: string;
-  followersCount: number;
-  followingCount: number;
+  followersCount?: number;
+  followingCount?: number;
+  followers_count?: number;
+  following_count?: number;
 }
 
 export interface AuthResponse {
@@ -13,7 +17,6 @@ export interface AuthResponse {
 }
 
 export interface LoginRequest {
-  email?: string;
-  phone?: string;
+  username?: string;
   password?: string;
 }

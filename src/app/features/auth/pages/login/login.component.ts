@@ -19,18 +19,26 @@ export class LoginComponent {
   isLoading = signal(false);
 
   loginForm = this.fb.group({
-    emailOrUsername: ['', [Validators.required]],
+    username: ['', [Validators.required]],
     password: ['', [Validators.required, Validators.minLength(6)]]
   });
 
   onSubmit() {
     if (this.loginForm.valid) {
       this.isLoading.set(true);
-      // Simulate login
-      setTimeout(() => {
-        console.log('Login attempt:', this.loginForm.value);
-        this.isLoading.set(false);
-      }, 1500);
+      const val = this.loginForm.value;
+      this.authService.login({
+        username: val.username,
+        password: val.password
+      }).subscribe({
+        next: () => {
+          this.isLoading.set(false);
+        },
+        error: (err) => {
+          console.error(err);
+          this.isLoading.set(false);
+        }
+      });
     }
   }
 }

@@ -14,6 +14,7 @@ import { AuthService } from 'src/app/core/services/auth.service';
 })
 export class RegisterComponent {
   private fb = inject(NonNullableFormBuilder);
+  private authService = inject(AuthService);
   
   isLoading = signal(false);
 
@@ -27,11 +28,36 @@ export class RegisterComponent {
   onSubmit() {
     if (this.registerForm.valid) {
       this.isLoading.set(true);
-      // Simulate registration
-      setTimeout(() => {
-        console.log('Register attempt:', this.registerForm.value);
-        this.isLoading.set(false);
-      }, 1500);
+      const val = this.registerForm.value;
+      
+      const payload = {
+        username: val.username || '',
+        email: val.email || '',
+        password: val.password || '',
+        bio: 'Social explorer'
+      };
+
+      this.authService.register(payload).subscribe({
+        next: () => {
+          // Auto log in after registering
+          this.authService.login({
+            username: val.username,
+            password: val.password
+          }).subscribe({
+            next: () => {
+              this.isLoading.set(false);
+            },
+            error: (err) => {
+              console.error('Auto login failed:', err);
+              this.isLoading.set(false);
+            }
+          });
+        },
+        error: (err) => {
+          console.error('Registration failed:', err);
+          this.isLoading.set(false);
+        }
+      });
     }
   }
 }
