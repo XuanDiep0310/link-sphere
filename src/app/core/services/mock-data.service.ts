@@ -31,6 +31,7 @@ export class MockDataService {
   // Posts State (populated dynamically or falls back)
   posts = signal<Post[]>([]);
   allPosts = signal<Post[]>([]);
+  isLoadingFeed = signal(false);
 
   // Explore grid items
   exploreItems = signal<ExploreItem[]>([]);
@@ -40,6 +41,14 @@ export class MockDataService {
   unreadNotificationCount = computed(() =>
     this.notifications().filter(n => !n.isRead).length
   );
+
+  // Toast notification
+  toastMessage = signal<string | null>(null);
+
+  showToast(message: string) {
+    this.toastMessage.set(message);
+    setTimeout(() => this.toastMessage.set(null), 3000);
+  }
 
   constructor() {}
 
@@ -60,19 +69,42 @@ export class MockDataService {
   // ─── FEED ───────────────────────────────────────────────────────────────
 
   loadFeed() {
-    this.http.get<{ success: boolean; data?: { results: any[] } }>(`${environment.apiUrl}/v1/feed/`).subscribe({
+    this.isLoadingFeed.set(true);
+    this.http.get<{ success: boolean; data?: { count: number; results: any[] } }>(`${environment.apiUrl}/v1/feed/`).subscribe({
       next: (res) => {
-        if (res && res.data && res.data.results) {
+        if (res && res.data && res.data.results && res.data.results.length > 0) {
           const mapped = res.data.results.map((item: any) => this.mapPostFromApi(item));
+          this.posts.set(mapped);
+          this.updateMockUsersFromPosts(mapped);
+          this.isLoadingFeed.set(false);
+        } else {
+          // Feed is empty (user follows nobody) — fallback to all posts
+          this.loadAllPostsAsFeed();
+        }
+      },
+      error: (err) => {
+        console.warn('API /v1/feed failed. Falling back to all posts:', err);
+        this.loadAllPostsAsFeed();
+      }
+    });
+  }
+
+  private loadAllPostsAsFeed() {
+    this.http.get<{ success: boolean; data?: any }>(`${environment.apiUrl}/v1/posts/`).subscribe({
+      next: (res) => {
+        if (res && res.data) {
+          const rawList = Array.isArray(res.data) ? res.data : (res.data.results || []);
+          const mapped = rawList.map((item: any) => this.mapPostFromApi(item));
           this.posts.set(mapped);
           this.updateMockUsersFromPosts(mapped);
         } else {
           this.posts.set([]);
         }
+        this.isLoadingFeed.set(false);
       },
-      error: (err) => {
-        console.warn('API /v1/feed failed. Setting empty feed:', err);
+      error: () => {
         this.posts.set([]);
+        this.isLoadingFeed.set(false);
       }
     });
   }
@@ -132,6 +164,7 @@ export class MockDataService {
         next: (res) => {
           // Reload feed to show the newly added post
           this.loadFeed();
+          this.showToast('🎉 Post published successfully!');
         }
       })
     );
