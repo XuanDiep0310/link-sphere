@@ -1,5 +1,6 @@
+// Generated dynamically by set-env.js
 export const environment = {
   production: false,
-  apiUrl: 'http://localhost:3000/api',
-  wsUrl: 'ws://localhost:3000/notifications'
+  apiUrl: 'https://link-sphere-ins.onrender.com/api',
+  wsUrl: 'https://link-sphere-ins.onrender.com/notifications'
 };
