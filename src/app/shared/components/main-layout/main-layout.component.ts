@@ -263,7 +263,29 @@ import { ChatService } from 'src/app/features/chat/services/chat.service';
         </div>
       </div>
     </div>
+
+    <!-- Global Toast Notification -->
+    <div
+      *ngIf="toastMessage()"
+      class="fixed bottom-6 left-1/2 -translate-x-1/2 z-[100] animate-slide-up"
+    >
+      <div class="flex items-center gap-3 px-6 py-3.5 bg-emerald-600 text-white rounded-2xl shadow-2xl shadow-emerald-500/30 font-bold text-sm">
+        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2.5" stroke="currentColor" class="w-5 h-5 flex-shrink-0">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M9 12.75L11.25 15 15 9.75M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+        </svg>
+        {{ toastMessage() }}
+      </div>
+    </div>
   `,
+  styles: [`
+    @keyframes slideUp {
+      from { transform: translate(-50%, 20px); opacity: 0; }
+      to { transform: translate(-50%, 0); opacity: 1; }
+    }
+    .animate-slide-up {
+      animation: slideUp 0.3s ease-out forwards;
+    }
+  `],
   changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class MainLayoutComponent {
@@ -273,6 +295,7 @@ export class MainLayoutComponent {
 
   currentUser = this.mockData.currentUser;
   unreadCount = this.mockData.unreadNotificationCount;
+  toastMessage = this.mockData.toastMessage;
 
   constructor() {
     // Load notifications on init for badge count
