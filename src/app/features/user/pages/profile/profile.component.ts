@@ -76,11 +76,11 @@ import { User } from 'src/app/core/models/auth.model';
             </div>
           </div>
 
-          <!-- Bio -->
+          <!-- Bio (from real data) -->
           <div class="space-y-1">
             <h4 class="text-sm font-bold text-slate-800 dark:text-white">Bio</h4>
             <p class="text-xs sm:text-sm text-slate-600 dark:text-slate-300 leading-relaxed font-medium">
-              Creative developer and social explorer. Sharing memories, paths, and coffee shop vibes from around the globe. 🌍📸✨
+              {{ profileUser().bio || 'No bio yet ✨' }}
             </p>
           </div>
         </div>
