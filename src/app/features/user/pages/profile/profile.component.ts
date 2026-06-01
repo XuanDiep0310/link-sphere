@@ -1,14 +1,16 @@
 import { Component, ChangeDetectionStrategy, inject, signal, computed } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { ActivatedRoute } from '@angular/router';
+import { FormsModule } from '@angular/forms';
+import { ActivatedRoute, RouterLink } from '@angular/router';
 import { MockDataService } from 'src/app/core/services/mock-data.service';
 import { AuthService } from 'src/app/core/services/auth.service';
 import { User } from 'src/app/core/models/auth.model';
+import { Post } from 'src/app/core/models/social.model';
 
 @Component({
   selector: 'app-profile',
   standalone: true,
-  imports: [CommonModule],
+  imports: [CommonModule, FormsModule, RouterLink],
   template: `
     <div class="max-w-2xl mx-auto space-y-8 sm:py-6 animate-fade-in">
       <!-- Profile Information Card -->
@@ -30,7 +32,7 @@ import { User } from 'src/app/core/models/auth.model';
               <p class="text-xs text-slate-400 dark:text-slate-500 font-medium">{{ profileUser().email }}</p>
             </div>
             
-            <!-- Actions Button (Sign Out for Own Profile, Follow/Unfollow for others) -->
+            <!-- Actions Button -->
             <div class="flex justify-center sm:justify-start">
               <button 
                 *ngIf="isOwnProfile(); else followButton"
@@ -76,7 +78,7 @@ import { User } from 'src/app/core/models/auth.model';
             </div>
           </div>
 
-          <!-- Bio (from real data) -->
+          <!-- Bio -->
           <div class="space-y-1">
             <h4 class="text-sm font-bold text-slate-800 dark:text-white">Bio</h4>
             <p class="text-xs sm:text-sm text-slate-600 dark:text-slate-300 leading-relaxed font-medium">
@@ -93,10 +95,11 @@ import { User } from 'src/app/core/models/auth.model';
         <div *ngIf="userPosts().length > 0; else emptyState" class="grid grid-cols-2 sm:grid-cols-3 gap-4">
           <div 
             *ngFor="let post of userPosts()"
-            class="aspect-square rounded-2xl overflow-hidden relative group shadow-sm hover:shadow-md transition-shadow bg-slate-100 dark:bg-slate-900 border border-slate-100 dark:border-slate-700"
+            (click)="openPostDetail(post)"
+            class="aspect-square rounded-2xl overflow-hidden relative group shadow-sm hover:shadow-lg transition-all bg-slate-100 dark:bg-slate-900 border border-slate-100 dark:border-slate-700 cursor-pointer"
           >
-            <img [src]="post.imageUrl" class="w-full h-full object-cover" alt="user post">
-            <!-- Simple hover info -->
+            <img [src]="post.imageUrl" class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" alt="user post">
+            <!-- Hover overlay -->
             <div class="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-4 text-white font-bold text-sm">
               <span>❤️ {{ post.likes }}</span>
               <span>💬 {{ post.comments.length }}</span>
@@ -119,6 +122,132 @@ import { User } from 'src/app/core/models/auth.model';
         </ng-template>
       </div>
     </div>
+
+    <!-- ═══════ Post Detail Modal ═══════ -->
+    <div 
+      *ngIf="selectedPost()"
+      class="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 flex items-center justify-center p-4"
+      (click)="closePostDetail()"
+    >
+      <div 
+        class="bg-white dark:bg-slate-800 rounded-3xl overflow-hidden shadow-2xl w-full max-w-3xl max-h-[90vh] flex flex-col md:flex-row border border-slate-200 dark:border-slate-700"
+        (click)="$event.stopPropagation()"
+      >
+        <!-- Left: Image -->
+        <div class="md:w-1/2 bg-black flex items-center justify-center flex-shrink-0 max-h-[40vh] md:max-h-none">
+          <img 
+            [src]="selectedPost()!.imageUrl" 
+            alt="Post image"
+            class="w-full h-full object-contain md:object-cover"
+          >
+        </div>
+
+        <!-- Right: Details -->
+        <div class="md:w-1/2 flex flex-col max-h-[50vh] md:max-h-[90vh]">
+          <!-- Post Header -->
+          <div class="flex items-center gap-3 p-4 border-b border-slate-100 dark:border-slate-700 flex-shrink-0">
+            <img 
+              [src]="selectedPost()!.user.avatarUrl || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150'" 
+              class="w-10 h-10 rounded-full object-cover"
+              alt="avatar"
+            >
+            <div class="flex-1 min-w-0">
+              <p 
+                class="font-bold text-sm text-slate-900 dark:text-white hover:underline cursor-pointer truncate"
+                [routerLink]="['/profile', selectedPost()!.user.username]"
+                (click)="closePostDetail()"
+              >
+                {{ selectedPost()!.user.username }}
+              </p>
+              <p class="text-[11px] text-slate-400 dark:text-slate-500">{{ selectedPost()!.createdAt }}</p>
+            </div>
+            <button 
+              (click)="closePostDetail()"
+              class="p-1.5 rounded-xl text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2.5" stroke="currentColor" class="w-5 h-5">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </button>
+          </div>
+
+          <!-- Caption -->
+          <div *ngIf="selectedPost()!.caption" class="px-4 py-3 border-b border-slate-100 dark:border-slate-700 flex-shrink-0">
+            <p class="text-sm text-slate-700 dark:text-slate-300 leading-relaxed">
+              <span class="font-bold text-slate-900 dark:text-white mr-1.5">{{ selectedPost()!.user.username }}</span>
+              {{ selectedPost()!.caption }}
+            </p>
+          </div>
+
+          <!-- Comments Section (scrollable) -->
+          <div class="flex-1 overflow-y-auto px-4 py-3 space-y-3 min-h-0">
+            <div *ngIf="selectedPost()!.comments.length === 0" class="text-center py-8">
+              <p class="text-sm text-slate-400 dark:text-slate-500">No comments yet</p>
+              <p class="text-xs text-slate-300 dark:text-slate-600 mt-1">Be the first to comment!</p>
+            </div>
+
+            <div *ngFor="let comment of selectedPost()!.comments" class="flex gap-2.5">
+              <img 
+                [src]="comment.avatarUrl || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150'" 
+                class="w-8 h-8 rounded-full object-cover flex-shrink-0 mt-0.5"
+                alt="commenter"
+              >
+              <div class="flex-1 min-w-0">
+                <p class="text-sm text-slate-700 dark:text-slate-300">
+                  <span class="font-bold text-slate-900 dark:text-white mr-1">{{ comment.username }}</span>
+                  {{ comment.text }}
+                </p>
+                <p class="text-[10px] text-slate-400 dark:text-slate-500 mt-0.5">{{ comment.createdAt }}</p>
+              </div>
+            </div>
+          </div>
+
+          <!-- Action Bar -->
+          <div class="border-t border-slate-100 dark:border-slate-700 p-4 flex-shrink-0 space-y-3">
+            <!-- Like & Stats -->
+            <div class="flex items-center justify-between">
+              <div class="flex items-center gap-4">
+                <button (click)="toggleLikeSelected()" class="transform hover:scale-110 active:scale-90 transition-transform">
+                  <svg xmlns="http://www.w3.org/2000/svg" 
+                    [attr.fill]="selectedPost()!.hasLiked ? '#ef4444' : 'none'" 
+                    viewBox="0 0 24 24" 
+                    stroke-width="2" 
+                    [attr.stroke]="selectedPost()!.hasLiked ? '#ef4444' : 'currentColor'" 
+                    class="w-6 h-6"
+                    [class.text-slate-700]="!selectedPost()!.hasLiked"
+                    [class.dark:text-slate-300]="!selectedPost()!.hasLiked"
+                  >
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M21 8.25c0-2.485-2.099-4.5-4.688-4.5-1.935 0-3.597 1.126-4.312 2.733-.715-1.607-2.377-2.733-4.313-2.733C5.1 3.75 3 5.765 3 8.25c0 7.22 9 12 9 12s9-4.78 9-12z" />
+                  </svg>
+                </button>
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="w-6 h-6 text-slate-700 dark:text-slate-300">
+                  <path stroke-linecap="round" stroke-linejoin="round" d="M12 20.25c4.97 0 9-3.694 9-8.25s-4.03-8.25-9-8.25S3 7.444 3 12c0 2.104.859 4.023 2.273 5.48.432.447.74 1.04.586 1.641a4.483 4.483 0 01-.923 1.785A5.969 5.969 0 006 21c1.282 0 2.47-.402 3.445-1.087.81.22 1.668.337 2.555.337z" />
+                </svg>
+              </div>
+              <span class="text-sm font-bold text-slate-800 dark:text-white">{{ selectedPost()!.likes }} likes</span>
+            </div>
+
+            <!-- Add Comment -->
+            <div class="flex items-center gap-2">
+              <input 
+                type="text"
+                [(ngModel)]="newComment"
+                (keydown.enter)="submitComment()"
+                placeholder="Add a comment..."
+                class="flex-1 bg-slate-50 dark:bg-slate-700/40 rounded-2xl px-4 py-2.5 text-sm text-slate-800 dark:text-white placeholder-slate-400 border-0 focus:ring-2 focus:ring-violet-500 outline-none transition-all"
+              >
+              <button 
+                (click)="submitComment()"
+                [disabled]="!newComment.trim()"
+                class="px-4 py-2.5 bg-violet-600 hover:bg-violet-700 disabled:opacity-40 disabled:cursor-not-allowed text-white font-bold text-xs rounded-2xl transition-colors"
+              >
+                Post
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
   `,
   changeDetection: ChangeDetectionStrategy.OnPush
 })
@@ -128,6 +257,8 @@ export class ProfileComponent {
   private authService = inject(AuthService);
 
   profileUsername = signal<string | null>(null);
+  selectedPost = signal<Post | null>(null);
+  newComment = '';
 
   constructor() {
     this.route.paramMap.subscribe(params => {
@@ -175,5 +306,57 @@ export class ProfileComponent {
 
   onLogout() {
     this.authService.logout();
+  }
+
+  // ─── Post Detail Modal ─────────────────────────────────────────────
+
+  openPostDetail(post: Post) {
+    this.selectedPost.set(post);
+    this.newComment = '';
+    // Load comments from API
+    this.mockData.loadComments(post.id);
+  }
+
+  closePostDetail() {
+    this.selectedPost.set(null);
+    this.newComment = '';
+  }
+
+  toggleLikeSelected() {
+    const post = this.selectedPost();
+    if (post) {
+      this.mockData.toggleLike(post.id);
+      // Update local selected post state to reflect the change
+      this.selectedPost.update(p => {
+        if (!p) return p;
+        const hasLiked = !p.hasLiked;
+        return { ...p, hasLiked, likes: hasLiked ? p.likes + 1 : p.likes - 1 };
+      });
+    }
+  }
+
+  submitComment() {
+    const post = this.selectedPost();
+    if (post && this.newComment.trim()) {
+      this.mockData.addComment(post.id, this.newComment.trim());
+      // Add optimistic comment to selected post view
+      this.selectedPost.update(p => {
+        if (!p) return p;
+        return {
+          ...p,
+          comments: [...p.comments, {
+            id: 'c_' + Date.now(),
+            username: this.mockData.currentUser().username,
+            avatarUrl: this.mockData.currentUser().avatarUrl,
+            text: this.newComment.trim(),
+            createdAt: 'Just now',
+            likesCount: 0,
+            hasLiked: false,
+            replies: []
+          }]
+        };
+      });
+      this.newComment = '';
+    }
   }
 }
