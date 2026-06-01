@@ -29,8 +29,8 @@ import { ChatMessage } from 'src/app/core/models/chat.model';
         >
         <div class="flex-1 min-w-0">
           <h2 class="font-bold text-slate-900 dark:text-white text-sm truncate">{{ conversationTitle() }}</h2>
-          <span class="text-xs" [ngClass]="chatService.isConnected() ? 'text-emerald-500' : 'text-slate-400 dark:text-slate-500'">
-            {{ chatService.isConnected() ? 'Online' : 'Connecting...' }}
+          <span class="text-xs" [ngClass]="chatStatusClass()">
+            {{ chatStatusText() }}
           </span>
         </div>
       </div>
@@ -247,6 +247,20 @@ export class ChatRoomComponent implements OnInit, OnDestroy, AfterViewChecked {
   conversationAvatar = computed(() => {
     const conv = this.chatService.conversations().find(c => c.id === this.conversationId);
     return conv?.avatar || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150';
+  });
+
+  chatStatusText = computed(() => {
+    const status = this.chatService.wsStatus();
+    if (status === 'connected') return 'Online';
+    if (status === 'connecting') return 'Connecting...';
+    return 'Active';
+  });
+
+  chatStatusClass = computed(() => {
+    const status = this.chatService.wsStatus();
+    if (status === 'connected') return 'text-emerald-500 font-semibold';
+    if (status === 'connecting') return 'text-amber-500 animate-pulse font-medium';
+    return 'text-slate-400 dark:text-slate-500';
   });
 
   ngOnInit() {

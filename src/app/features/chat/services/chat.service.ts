@@ -17,6 +17,7 @@ export class ChatService {
   isLoadingConversations = signal(false);
   isLoadingMessages = signal(false);
   isConnected = signal(false);
+  wsStatus = signal<'connecting' | 'connected' | 'disconnected'>('disconnected');
   nextCursor = signal<string | null>(null);
   hasMoreMessages = signal(true);
   totalUnreadCount = computed(() =>
@@ -25,18 +26,26 @@ export class ChatService {
 
   private ws: WebSocket | null = null;
   private currentConversationId: string | null = null;
+  private connectTimeoutId: any = null;
 
   // ─── Conversations ─────────────────────────────────────────────────────
 
   loadConversations() {
     this.isLoadingConversations.set(true);
-    this.http.get<{ success: boolean; message: string; timestamp: string; data: any }>(`${environment.apiUrl}/v1/chat/conversations/`).subscribe({
+    this.http.get<any>(`${environment.apiUrl}/v1/chat/conversations/`).subscribe({
       next: (res) => {
-        if (res.success && res.data) {
-          const list = Array.isArray(res.data) ? res.data : (res.data.results || []);
-          const mapped: Conversation[] = list.map((c: any) => this.mapConversation(c));
-          this.conversations.set(mapped);
+        let rawList: any[] = [];
+        if (Array.isArray(res)) {
+          rawList = res;
+        } else if (res) {
+          if (res.success && res.data) {
+            rawList = Array.isArray(res.data) ? res.data : (res.data.results || []);
+          } else if (Array.isArray(res.results)) {
+            rawList = res.results;
+          }
         }
+        const mapped: Conversation[] = rawList.map((c: any) => this.mapConversation(c));
+        this.conversations.set(mapped);
         this.isLoadingConversations.set(false);
       },
       error: (err) => {
@@ -47,13 +56,21 @@ export class ChatService {
   }
 
   createConversation(recipientId: number): Observable<Conversation | null> {
-    return this.http.post<{ success: boolean; message: string; timestamp: string; data: any }>(
+    return this.http.post<any>(
       `${environment.apiUrl}/v1/chat/conversations/`,
       { type: 'direct', recipient_id: recipientId }
     ).pipe(
       switchMap(res => {
-        if (res.success && res.data) {
-          const conv = this.mapConversation(res.data);
+        let rawConv: any = null;
+        if (res) {
+          if (res.success && res.data) {
+            rawConv = res.data;
+          } else if (res.id) {
+            rawConv = res;
+          }
+        }
+        if (rawConv) {
+          const conv = this.mapConversation(rawConv);
           // Add to conversations list if not already there
           this.conversations.update(list => {
             const exists = list.find(c => c.id === conv.id);
@@ -82,25 +99,37 @@ export class ChatService {
       url += `?cursor=${cursor}`;
     }
 
-    this.http.get<{ success: boolean; message: string; timestamp: string; data: any }>(url).subscribe({
+    this.http.get<any>(url).subscribe({
       next: (res) => {
-        if (res.success && res.data) {
-          const results = Array.isArray(res.data) ? res.data : (res.data.results || []);
-          const mapped: ChatMessage[] = results.map((m: any) => this.mapMessage(m, conversationId));
+        let results: any[] = [];
+        let nextCursor: string | null = null;
 
-          if (cursor) {
-            // Prepend older messages
-            this.messages.update(current => [...mapped.reverse(), ...current]);
-          } else {
-            // Initial load – messages come newest-first from API, reverse for display
-            this.messages.set(mapped.reverse());
+        if (Array.isArray(res)) {
+          results = res;
+        } else if (res) {
+          if (res.success && res.data) {
+            results = Array.isArray(res.data) ? res.data : (res.data.results || []);
+            nextCursor = res.data.next_cursor || res.data.next || null;
+          } else if (Array.isArray(res.results)) {
+            results = res.results;
+            nextCursor = res.next || res.next_cursor || null;
+          } else if (res.id) {
+            results = [res];
           }
-
-          // Handle cursor pagination
-          const nextCursor = res.data.next_cursor || res.data.next || null;
-          this.nextCursor.set(nextCursor);
-          this.hasMoreMessages.set(!!nextCursor);
         }
+
+        const mapped: ChatMessage[] = results.map((m: any) => this.mapMessage(m, conversationId));
+
+        if (cursor) {
+          // Prepend older messages
+          this.messages.update(current => [...mapped.reverse(), ...current]);
+        } else {
+          // Initial load – messages come newest-first from API, reverse for display
+          this.messages.set(mapped.reverse());
+        }
+
+        this.nextCursor.set(nextCursor);
+        this.hasMoreMessages.set(!!nextCursor);
         this.isLoadingMessages.set(false);
       },
       error: (err) => {
@@ -149,6 +178,7 @@ export class ChatService {
     const token = localStorage.getItem('access_token');
     if (!token) {
       console.warn('No JWT token found, cannot connect to chat WebSocket.');
+      this.wsStatus.set('disconnected');
       return;
     }
 
@@ -172,11 +202,32 @@ export class ChatService {
 
     const wsUrl = `${wsBase}/ws/chat/${conversationId}/?token=${token}`;
 
+    this.wsStatus.set('connecting');
+
+    // Set connection timeout (5 seconds)
+    if (this.connectTimeoutId) {
+      clearTimeout(this.connectTimeoutId);
+    }
+    this.connectTimeoutId = setTimeout(() => {
+      if (this.wsStatus() === 'connecting') {
+        console.warn('WebSocket connection attempt timed out.');
+        this.wsStatus.set('disconnected');
+        this.isConnected.set(false);
+        if (this.ws) {
+          try {
+            this.ws.close();
+          } catch {}
+        }
+      }
+    }, 5000);
+
     try {
       this.ws = new WebSocket(wsUrl);
 
       this.ws.onopen = () => {
+        if (this.connectTimeoutId) clearTimeout(this.connectTimeoutId);
         this.isConnected.set(true);
+        this.wsStatus.set('connected');
       };
 
       this.ws.onmessage = (event) => {
@@ -202,21 +253,31 @@ export class ChatService {
       };
 
       this.ws.onclose = () => {
+        if (this.connectTimeoutId) clearTimeout(this.connectTimeoutId);
         this.isConnected.set(false);
+        this.wsStatus.set('disconnected');
       };
 
       this.ws.onerror = (err) => {
         console.warn('WebSocket error:', err);
+        if (this.connectTimeoutId) clearTimeout(this.connectTimeoutId);
         this.isConnected.set(false);
+        this.wsStatus.set('disconnected');
       };
     } catch (err) {
       console.warn('Failed to create WebSocket connection:', err);
+      if (this.connectTimeoutId) clearTimeout(this.connectTimeoutId);
+      this.isConnected.set(false);
+      this.wsStatus.set('disconnected');
     }
   }
 
   sendMessage(content: string, messageType: 'text' | 'image' = 'text', fileUrl?: string) {
     if (!this.ws || this.ws.readyState !== WebSocket.OPEN) {
-      console.warn('WebSocket not connected');
+      console.warn('WebSocket not connected. HTTP Fallback not available as backend lacks a POST endpoint. Will retry loading messages.');
+      if (this.currentConversationId) {
+        this.loadMessages(this.currentConversationId);
+      }
       return;
     }
     const payload: any = {
@@ -230,11 +291,16 @@ export class ChatService {
   }
 
   disconnectWebSocket() {
+    if (this.connectTimeoutId) {
+      clearTimeout(this.connectTimeoutId);
+      this.connectTimeoutId = null;
+    }
     if (this.ws) {
       this.ws.close();
       this.ws = null;
     }
     this.isConnected.set(false);
+    this.wsStatus.set('disconnected');
     this.currentConversationId = null;
   }
 
