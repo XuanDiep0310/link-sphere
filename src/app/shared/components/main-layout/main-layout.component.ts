@@ -4,6 +4,7 @@ import { RouterOutlet, RouterLink, RouterLinkActive, Router } from '@angular/rou
 import { FormsModule } from '@angular/forms';
 import { MockDataService } from 'src/app/core/services/mock-data.service';
 import { AuthService } from 'src/app/core/services/auth.service';
+import { ChatService } from 'src/app/features/chat/services/chat.service';
 
 @Component({
   selector: 'app-main-layout',
@@ -84,8 +85,30 @@ import { AuthService } from 'src/app/core/services/auth.service';
                 <path stroke-linecap="round" stroke-linejoin="round" d="M21 8.25c0-2.485-2.099-4.5-4.688-4.5-1.935 0-3.597 1.126-4.312 2.733-.715-1.607-2.377-2.733-4.313-2.733C5.1 3.75 3 5.765 3 8.25c0 7.22 9 12 9 12s9-4.78 9-12z" />
               </svg>
               <!-- Notification Badge -->
-              <span class="absolute top-1 right-1 bg-red-500 text-white text-[10px] font-bold w-4 h-4 flex items-center justify-center rounded-full border border-white dark:border-slate-800">
-                3
+              <span 
+                *ngIf="unreadCount() > 0"
+                class="absolute top-1 right-1 bg-red-500 text-white text-[10px] font-bold w-4 h-4 flex items-center justify-center rounded-full border border-white dark:border-slate-800"
+              >
+                {{ unreadCount() > 9 ? '9+' : unreadCount() }}
+              </span>
+            </a>
+
+            <!-- Messages -->
+            <a 
+              routerLink="/chat" 
+              routerLinkActive="text-violet-600 bg-violet-50 dark:bg-violet-950/40"
+              class="p-2 rounded-xl text-slate-600 dark:text-slate-300 hover:text-violet-600 hover:bg-slate-50 dark:hover:bg-slate-700/50 transition-all relative"
+              title="Messages"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="w-6 h-6">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M8.625 12a.375.375 0 11-.75 0 .375.375 0 01.75 0zm0 0H8.25m4.125 0a.375.375 0 11-.75 0 .375.375 0 01.75 0zm0 0H12m4.125 0a.375.375 0 11-.75 0 .375.375 0 01.75 0zm0 0h-.375M21 12c0 4.556-4.03 8.25-9 8.25a9.764 9.764 0 01-2.555-.337A5.972 5.972 0 015.41 20.97a5.969 5.969 0 01-.474-.065 4.48 4.48 0 00.978-2.025c.09-.457-.133-.901-.467-1.226C3.93 16.178 3 14.189 3 12c0-4.556 4.03-8.25 9-8.25s9 3.694 9 8.25z" />
+              </svg>
+              <!-- Unread Messages Badge -->
+              <span 
+                *ngIf="chatService.totalUnreadCount() > 0"
+                class="absolute top-1 right-1 bg-red-500 text-white text-[10px] font-bold min-w-[16px] h-4 flex items-center justify-center rounded-full border border-white dark:border-slate-800 px-0.5"
+              >
+                {{ chatService.totalUnreadCount() > 99 ? '99+' : chatService.totalUnreadCount() }}
               </span>
             </a>
 
@@ -246,8 +269,17 @@ import { AuthService } from 'src/app/core/services/auth.service';
 export class MainLayoutComponent {
   private mockData = inject(MockDataService);
   private router = inject(Router);
+  chatService = inject(ChatService);
 
   currentUser = this.mockData.currentUser;
+  unreadCount = this.mockData.unreadNotificationCount;
+
+  constructor() {
+    // Load notifications on init for badge count
+    this.mockData.loadNotifications();
+    // Load chat conversations for unread badge
+    this.chatService.loadConversations();
+  }
 
   // Modal State
   isCreateModalOpen = signal(false);
