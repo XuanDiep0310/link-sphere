@@ -1,4 +1,4 @@
-import { Component, ChangeDetectionStrategy, inject, signal, computed } from '@angular/core';
+import { Component, ChangeDetectionStrategy, inject, signal, computed, effect } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { MockDataService } from 'src/app/core/services/mock-data.service';
@@ -6,6 +6,7 @@ import { User } from 'src/app/core/models/auth.model';
 import { Post } from 'src/app/core/models/social.model';
 
 import { RouterLink } from '@angular/router';
+import { Subject, debounceTime, distinctUntilChanged, switchMap, of } from 'rxjs';
 
 @Component({
   selector: 'app-search',
@@ -22,14 +23,15 @@ import { RouterLink } from '@angular/router';
         </div>
         <input 
           type="text" 
-          [(ngModel)]="searchQuery"
+          [ngModel]="searchQuery()"
+          (ngModelChange)="onSearchInput($event)"
           placeholder="Search users, posts, hashtags..."
           class="w-full bg-white dark:bg-slate-800 border border-slate-150 dark:border-slate-700/80 rounded-2xl pl-12 pr-5 py-4 text-slate-900 dark:text-white placeholder-slate-400 dark:placeholder-slate-500 shadow-sm focus:ring-2 focus:ring-violet-500 outline-none transition-all"
         >
         <!-- Clear input button -->
         <button 
           *ngIf="searchQuery()"
-          (click)="searchQuery.set('')"
+          (click)="clearSearch()"
           class="absolute right-4 p-1 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 transition-colors"
         >
           <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2.5" stroke="currentColor" class="w-4 h-4">
@@ -71,12 +73,18 @@ import { RouterLink } from '@angular/router';
           </div>
         </div>
 
+        <!-- Loading State -->
+        <div *ngIf="searchQuery() && isSearching()" class="text-center py-12">
+          <div class="w-8 h-8 border-2 border-violet-600 border-t-transparent rounded-full animate-spin mx-auto"></div>
+          <p class="text-sm text-slate-400 mt-3">Searching...</p>
+        </div>
+
         <!-- Matching Results List -->
-        <div *ngIf="searchQuery()" class="space-y-4">
+        <div *ngIf="searchQuery() && !isSearching()" class="space-y-4">
           <!-- Users List Tab -->
           <div *ngIf="activeTab() === 'users'" class="space-y-3">
             <div 
-              *ngFor="let user of filteredUsers()"
+              *ngFor="let user of searchedUsers()"
               class="bg-white dark:bg-slate-800 p-4 rounded-2xl border border-slate-100 dark:border-slate-700/60 flex items-center justify-between hover:shadow-md transition-shadow"
             >
               <div class="flex items-center gap-3">
@@ -101,14 +109,14 @@ import { RouterLink } from '@angular/router';
 
               <!-- Follow Toggle Simulation Button -->
               <button 
-                *ngIf="user.id !== '1'"
-                (click)="toggleFollow(user.id)"
+                *ngIf="user.id !== currentUserId()"
+                (click)="toggleFollow(user.username)"
                 class="px-4 py-1.5 rounded-xl font-bold text-xs bg-slate-100 hover:bg-slate-200 dark:bg-slate-700 dark:hover:bg-slate-600 text-slate-800 dark:text-white transition-colors"
               >
                 Follow
               </button>
             </div>
-            <div *ngIf="filteredUsers().length === 0" class="text-center py-10 text-slate-400 dark:text-slate-500 text-sm">
+            <div *ngIf="searchedUsers().length === 0" class="text-center py-10 text-slate-400 dark:text-slate-500 text-sm">
               No users found matching "{{ searchQuery() }}"
             </div>
           </div>
@@ -116,7 +124,7 @@ import { RouterLink } from '@angular/router';
           <!-- Posts List Tab -->
           <div *ngIf="activeTab() === 'posts'" class="space-y-4">
             <div 
-              *ngFor="let post of filteredPosts()"
+              *ngFor="let post of searchedPosts()"
               class="bg-white dark:bg-slate-800 p-4 rounded-2xl border border-slate-100 dark:border-slate-700/60 flex gap-4 hover:shadow-md transition-shadow"
             >
               <div class="w-20 h-20 bg-slate-100 rounded-xl overflow-hidden flex-shrink-0">
@@ -142,7 +150,7 @@ import { RouterLink } from '@angular/router';
                 </div>
               </div>
             </div>
-            <div *ngIf="filteredPosts().length === 0" class="text-center py-10 text-slate-400 dark:text-slate-500 text-sm">
+            <div *ngIf="searchedPosts().length === 0" class="text-center py-10 text-slate-400 dark:text-slate-500 text-sm">
               No posts found matching "{{ searchQuery() }}"
             </div>
           </div>
@@ -182,6 +190,16 @@ export class SearchComponent {
 
   searchQuery = signal('');
   activeTab = signal<'users' | 'posts' | 'hashtags'>('users');
+  isSearching = signal(false);
+
+  // API search results
+  searchedUsers = signal<User[]>([]);
+  searchedPosts = signal<Post[]>([]);
+
+  // Debounce subject
+  private searchSubject = new Subject<string>();
+
+  currentUserId = computed(() => String(this.mockData.currentUser().id));
 
   tabs = [
     { id: 'users', name: 'Users' },
@@ -197,33 +215,54 @@ export class SearchComponent {
     }
   });
 
-  // Filter lists based on searchQuery
-  filteredUsers = computed(() => {
-    const query = this.searchQuery().trim().toLowerCase();
-    if (!query) return [];
-    return this.mockData.mockUsers().filter(u => 
-      u.username.toLowerCase().includes(query) || 
-      u.email.toLowerCase().includes(query)
-    );
-  });
+  constructor() {
+    // Setup debounced search pipeline
+    this.searchSubject.pipe(
+      debounceTime(400),
+      distinctUntilChanged()
+    ).subscribe(query => {
+      if (!query.trim()) {
+        this.searchedUsers.set([]);
+        this.searchedPosts.set([]);
+        this.isSearching.set(false);
+        return;
+      }
+      this.performSearch(query);
+    });
+  }
 
-  filteredPosts = computed(() => {
-    const query = this.searchQuery().trim().toLowerCase();
-    if (!query) return [];
-    return this.mockData.posts().filter(p => 
-      p.caption.toLowerCase().includes(query) || 
-      p.user.username.toLowerCase().includes(query)
-    );
-  });
+  onSearchInput(value: string) {
+    this.searchQuery.set(value);
+    if (value.trim()) {
+      this.isSearching.set(true);
+    }
+    this.searchSubject.next(value);
+  }
+
+  clearSearch() {
+    this.searchQuery.set('');
+    this.searchedUsers.set([]);
+    this.searchedPosts.set([]);
+    this.isSearching.set(false);
+  }
+
+  private performSearch(query: string) {
+    // Search both users and posts in parallel
+    this.mockData.searchUsers(query).subscribe(users => {
+      this.searchedUsers.set(users);
+      this.isSearching.set(false);
+    });
+
+    this.mockData.searchPosts(query).subscribe(posts => {
+      this.searchedPosts.set(posts);
+      this.isSearching.set(false);
+    });
+  }
 
   filteredHashtags = computed(() => {
     const query = this.searchQuery().trim().toLowerCase().replace('#', '');
     if (!query) return [];
 
-    // Extract unique hashtags in memory from mock service posts
-    const tagCount: Record<string, number> = {};
-    
-    // Static predefined ones to look populated
     const defaultTags = [
       { name: 'CoffeeLovers', count: 12 },
       { name: 'Adventure', count: 8 },
@@ -235,7 +274,7 @@ export class SearchComponent {
     return defaultTags.filter(t => t.name.toLowerCase().includes(query));
   });
 
-  toggleFollow(userId: string | number) {
-    this.mockData.toggleFollow(String(userId));
+  toggleFollow(username: string) {
+    this.mockData.toggleFollowByUsername(username);
   }
 }
