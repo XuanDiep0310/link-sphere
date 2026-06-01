@@ -26,6 +26,10 @@ export const routes: Routes = [
         loadChildren: () => import('./features/notification/notification.routes').then(m => m.NOTIFICATION_ROUTES)
       },
       {
+        path: 'chat',
+        loadChildren: () => import('./features/chat/chat.routes').then(m => m.CHAT_ROUTES)
+      },
+      {
         path: 'profile',
         loadChildren: () => import('./features/user/user.routes').then(m => m.USER_ROUTES)
       }
