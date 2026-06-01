@@ -326,6 +326,12 @@ export class ChatRoomComponent implements OnInit, OnDestroy, AfterViewChecked {
 
     if (!content && !fileUrl) return;
 
+    if (!this.chatService.isConnected()) {
+      this.chatService.showToast('⚠️ Offline: Reconnecting to chat server. Please retry in a second.');
+      this.chatService.connectWebSocket(this.conversationId);
+      return;
+    }
+
     if (fileUrl) {
       this.chatService.sendMessage(content || '', 'image', fileUrl);
     } else {

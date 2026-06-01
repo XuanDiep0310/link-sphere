@@ -4,12 +4,14 @@ import { environment } from '../../../../environments/environment';
 import { Conversation, ChatMessage } from 'src/app/core/models/chat.model';
 import { Observable, of, catchError, switchMap, tap } from 'rxjs';
 import { User } from 'src/app/core/models/auth.model';
+import { MockDataService } from 'src/app/core/services/mock-data.service';
 
 @Injectable({
   providedIn: 'root'
 })
 export class ChatService {
   private http = inject(HttpClient);
+  private mockData = inject(MockDataService);
 
   // ─── State ──────────────────────────────────────────────────────────────
   conversations = signal<Conversation[]>([]);
@@ -200,7 +202,7 @@ export class ChatService {
       wsBase = wsBase.replace(/\/notifications\/?$/, '').replace(/\/ws\/.*$/, '');
     }
 
-    const wsUrl = `${wsBase}/ws/chat/${conversationId}/?token=${token}`;
+    const wsUrl = `${wsBase}/ws/chat/${conversationId}/?token=${token}&access_token=${token}`;
 
     this.wsStatus.set('connecting');
 
@@ -252,10 +254,11 @@ export class ChatService {
         }
       };
 
-      this.ws.onclose = () => {
+      this.ws.onclose = (event: CloseEvent) => {
         if (this.connectTimeoutId) clearTimeout(this.connectTimeoutId);
         this.isConnected.set(false);
         this.wsStatus.set('disconnected');
+        console.warn(`WebSocket closed. Code: ${event.code}, Reason: ${event.reason}`);
       };
 
       this.ws.onerror = (err) => {
@@ -336,6 +339,10 @@ export class ChatService {
     this.messages.set([]);
     this.nextCursor.set(null);
     this.hasMoreMessages.set(true);
+  }
+
+  showToast(message: string) {
+    this.mockData.showToast(message);
   }
 
   private mapConversation(c: any): Conversation {
