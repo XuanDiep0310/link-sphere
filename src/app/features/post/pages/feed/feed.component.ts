@@ -425,10 +425,15 @@ export class FeedComponent {
   }
 
   toggleComments(postId: string) {
+    const isCurrentlyOpen = this.expandedComments()[postId];
     this.expandedComments.update(current => ({
       ...current,
       [postId]: !current[postId]
     }));
+    // Load comments from API when opening
+    if (!isCurrentlyOpen) {
+      this.mockData.loadComments(postId);
+    }
   }
 
   toggleLike(postId: string) {

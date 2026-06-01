@@ -42,5 +42,6 @@ export interface Notification {
   type: 'like' | 'comment' | 'follow';
   details: string;
   createdAt: string;
+  isRead?: boolean;
   isFollowingBack?: boolean;
 }
