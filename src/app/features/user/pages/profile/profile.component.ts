@@ -39,9 +39,19 @@ import { environment } from 'src/environments/environment';
             </div>
             
             <!-- Actions Button -->
-            <div class="flex justify-center sm:justify-start">
-              <button 
-                *ngIf="isOwnProfile(); else followButton"
+            <div class="flex justify-center sm:justify-start gap-2">
+              <button
+                *ngIf="isOwnProfile()"
+                (click)="openEditProfile()"
+                class="px-5 py-2 bg-slate-100 hover:bg-slate-200 dark:bg-slate-700 dark:hover:bg-slate-600 text-slate-700 dark:text-white font-bold rounded-2xl text-xs transition-colors flex items-center gap-1.5"
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="w-4 h-4">
+                  <path stroke-linecap="round" stroke-linejoin="round" d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L10.582 16.07a4.5 4.5 0 01-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 011.13-1.897l8.932-8.931zm0 0L19.5 7.125" />
+                </svg>
+                Edit Profile
+              </button>
+              <button
+                *ngIf="isOwnProfile()"
                 (click)="onLogout()"
                 class="px-5 py-2 bg-red-50 hover:bg-red-100 dark:bg-red-950/20 dark:hover:bg-red-950/40 text-red-600 dark:text-red-400 font-bold rounded-2xl text-xs transition-colors flex items-center gap-1.5"
               >
@@ -51,20 +61,19 @@ import { environment } from 'src/environments/environment';
                 Sign Out
               </button>
 
-              <ng-template #followButton>
-                <button 
-                  (click)="toggleFollowUser()"
-                  [class.bg-violet-600]="!isFollowing()"
-                  [class.text-white]="!isFollowing()"
-                  [class.bg-slate-100]="isFollowing()"
-                  [class.dark:bg-slate-700]="isFollowing()"
-                  [class.text-slate-800]="isFollowing()"
-                  [class.dark:text-white]="isFollowing()"
-                  class="px-6 py-2 rounded-2xl font-bold text-xs transition-all shadow-sm transform hover:scale-[1.02] active:scale-95"
-                >
-                  {{ isFollowing() ? 'Following' : 'Follow' }}
-                </button>
-              </ng-template>
+              <button
+                *ngIf="!isOwnProfile()"
+                (click)="toggleFollowUser()"
+                [class.bg-violet-600]="!isFollowing()"
+                [class.text-white]="!isFollowing()"
+                [class.bg-slate-100]="isFollowing()"
+                [class.dark:bg-slate-700]="isFollowing()"
+                [class.text-slate-800]="isFollowing()"
+                [class.dark:text-white]="isFollowing()"
+                class="px-6 py-2 rounded-2xl font-bold text-xs transition-all shadow-sm transform hover:scale-[1.02] active:scale-95"
+              >
+                {{ isFollowing() ? 'Following' : 'Follow' }}
+              </button>
             </div>
           </div>
 
@@ -126,6 +135,72 @@ import { environment } from 'src/environments/environment';
             <p class="text-xs text-slate-400 dark:text-slate-500 mt-1">This user hasn't uploaded any posts yet.</p>
           </div>
         </ng-template>
+      </div>
+    </div>
+
+    <!-- ═══════ Edit Profile Modal ═══════ -->
+    <div
+      *ngIf="showEditProfile()"
+      class="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4"
+      (click)="closeEditProfile()"
+    >
+      <div
+        class="bg-white dark:bg-slate-800 rounded-3xl shadow-2xl w-full max-w-md p-6 space-y-5 border border-slate-100 dark:border-slate-700"
+        (click)="$event.stopPropagation()"
+      >
+        <div class="flex items-center justify-between">
+          <h3 class="text-lg font-extrabold text-slate-900 dark:text-white">Edit Profile</h3>
+          <button (click)="closeEditProfile()" class="p-1.5 rounded-xl text-slate-400 hover:text-slate-600 hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors">
+            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2.5" stroke="currentColor" class="w-5 h-5">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
+            </svg>
+          </button>
+        </div>
+
+        <!-- Avatar preview -->
+        <div class="flex flex-col items-center gap-3">
+          <img
+            [src]="editAvatarUrl || profileUser().avatarUrl || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150'"
+            class="w-20 h-20 rounded-full object-cover border-4 border-violet-100 dark:border-violet-900"
+            alt="avatar preview"
+          >
+          <div class="w-full space-y-1">
+            <label class="text-xs font-bold text-slate-600 dark:text-slate-400">Avatar URL</label>
+            <input
+              type="text"
+              [(ngModel)]="editAvatarUrl"
+              placeholder="https://..."
+              class="w-full bg-slate-50 dark:bg-slate-700/50 rounded-2xl px-4 py-2.5 text-sm text-slate-800 dark:text-white placeholder-slate-400 border-0 focus:ring-2 focus:ring-violet-500 outline-none transition-all"
+            >
+          </div>
+        </div>
+
+        <!-- Bio -->
+        <div class="space-y-1">
+          <label class="text-xs font-bold text-slate-600 dark:text-slate-400">Bio</label>
+          <textarea
+            [(ngModel)]="editBio"
+            rows="3"
+            placeholder="Tell people about yourself..."
+            class="w-full bg-slate-50 dark:bg-slate-700/50 rounded-2xl px-4 py-2.5 text-sm text-slate-800 dark:text-white placeholder-slate-400 border-0 focus:ring-2 focus:ring-violet-500 outline-none transition-all resize-none"
+          ></textarea>
+        </div>
+
+        <!-- Actions -->
+        <div class="flex gap-3">
+          <button
+            (click)="closeEditProfile()"
+            class="flex-1 py-2.5 rounded-2xl border border-slate-200 dark:border-slate-600 text-slate-600 dark:text-slate-300 font-bold text-sm hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors"
+          >
+            Cancel
+          </button>
+          <button
+            (click)="saveProfile()"
+            class="flex-1 py-2.5 rounded-2xl bg-violet-600 hover:bg-violet-700 text-white font-bold text-sm transition-colors"
+          >
+            Save Changes
+          </button>
+        </div>
       </div>
     </div>
 
@@ -268,17 +343,24 @@ export class ProfileComponent {
   newComment = '';
   isLoadingProfile = signal(false);
 
-  // Holds the fetched profile data for other users
   private externalUser = signal<User | null>(null);
-  // Tracks follow state for the viewed profile
   isFollowingProfile = signal(false);
+
+  // Edit Profile modal state
+  showEditProfile = signal(false);
+  editBio = '';
+  editAvatarUrl = '';
 
   constructor() {
     this.route.paramMap.subscribe(params => {
       const username = params.get('username');
       this.profileUsername.set(username);
       this.externalUser.set(null);
+
       this.mockData.loadAllPosts();
+      if (username) {
+        this.mockData.loadUserPosts(username);
+      }
 
       if (username && username !== this.mockData.currentUser().username) {
         this.fetchUserProfile(username);
@@ -341,7 +423,7 @@ export class ProfileComponent {
 
   userPosts = computed(() => {
     const user = this.profileUser();
-    return this.mockData.allPosts().filter(p => p.user.username === user.username);
+    return this.mockData.getUserPosts(user.username);
   });
 
   toggleFollowUser() {
@@ -365,6 +447,22 @@ export class ProfileComponent {
 
   onLogout() {
     this.authService.logout();
+  }
+
+  openEditProfile() {
+    const user = this.profileUser();
+    this.editBio = user.bio || '';
+    this.editAvatarUrl = user.avatarUrl || '';
+    this.showEditProfile.set(true);
+  }
+
+  closeEditProfile() {
+    this.showEditProfile.set(false);
+  }
+
+  saveProfile() {
+    this.mockData.updateProfile(this.editBio.trim(), this.editAvatarUrl.trim());
+    this.showEditProfile.set(false);
   }
 
   // ─── Post Detail Modal ─────────────────────────────────────────────
