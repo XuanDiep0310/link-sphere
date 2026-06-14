@@ -18,9 +18,11 @@ import { ChatService } from 'src/app/features/chat/services/chat.service';
           <!-- Logo -->
           <a routerLink="/" class="flex items-center gap-2.5 group">
             <div class="w-9 h-9 bg-violet-600 rounded-xl flex items-center justify-center text-white font-extrabold text-lg shadow-md shadow-violet-500/20 group-hover:scale-105 transition-all">
-              S
+              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2.5" stroke="currentColor" class="w-5 h-5">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M13.19 8.688a4.5 4.5 0 011.242 7.244l-4.5 4.5a4.5 4.5 0 01-6.364-6.364l1.757-1.757m13.35-.622l1.757-1.757a4.5 4.5 0 00-6.364-6.364l-4.5 4.5a4.5 4.5 0 001.242 7.244" />
+              </svg>
             </div>
-            <span class="font-extrabold text-xl tracking-tight text-slate-800 dark:text-white group-hover:text-violet-600 transition-colors">Social</span>
+            <span class="font-extrabold text-xl tracking-tight text-slate-800 dark:text-white group-hover:text-violet-600 transition-colors">Link Sphere</span>
           </a>
 
           <!-- Right Navigation Icons -->
