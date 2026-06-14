@@ -53,10 +53,10 @@ export class AuthService {
               id: '1',
               email: email,
               username: username,
-              bio: localStorage.getItem('logged_in_bio') || 'Social explorer',
+              bio: localStorage.getItem('logged_in_bio') || '',
               avatarUrl: localStorage.getItem('logged_in_avatar') || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150',
-              followersCount: 1240,
-              followingCount: 482
+              followersCount: 0,
+              followingCount: 0
             });
             
             this._authStatus.set('authenticated');
@@ -168,8 +168,8 @@ export class AuthService {
         username: username,
         bio: bio,
         avatarUrl: avatar || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150',
-        followersCount: 1240,
-        followingCount: 482
+        followersCount: 0,
+        followingCount: 0
       });
       this._authStatus.set('authenticated');
 

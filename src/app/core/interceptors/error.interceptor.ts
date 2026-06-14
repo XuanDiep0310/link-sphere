@@ -50,8 +50,6 @@ export const errorInterceptor: HttpInterceptorFn = (req, next) => {
         }
       }
       
-      const errorMessage = error.error?.message || error.statusText;
-      console.error('API Error:', errorMessage);
       return throwError(() => error);
     })
   );
