@@ -4,12 +4,12 @@ import { User } from '../models/auth.model';
 import { Post, Comment, Notification, ExploreItem } from '../models/social.model';
 import { environment } from '../../../environments/environment';
 import { AuthService } from './auth.service';
-import { tap, Observable, of, Subject, debounceTime, switchMap, catchError } from 'rxjs';
+import { tap, Observable, of, switchMap, catchError } from 'rxjs';
 
 @Injectable({
   providedIn: 'root'
 })
-export class MockDataService {
+export class SocialService {
   private http = inject(HttpClient);
   private authService = inject(AuthService);
 
@@ -195,8 +195,7 @@ export class MockDataService {
           this.exploreItems.set([]);
         }
       },
-      error: (err) => {
-        console.warn('API /v1/feed/explore failed. Setting empty explore:', err);
+      error: () => {
         this.exploreItems.set([]);
       }
     });
@@ -211,8 +210,7 @@ export class MockDataService {
           this.updateMockUsersFromPosts(mapped);
         }
       },
-      error: (err) => {
-        console.warn('API /v1/posts/ failed. Using feed posts fallback:', err);
+      error: () => {
         this.allPosts.set(this.posts());
       }
     });
@@ -229,10 +227,9 @@ export class MockDataService {
 
     return this.http.post<{ success: boolean; data?: any }>(`${environment.apiUrl}/v1/posts/`, formData).pipe(
       tap({
-        next: (res) => {
-          // Reload feed to show the newly added post
+        next: () => {
           this.loadFeed();
-          this.showToast('🎉 Post published successfully!');
+          this.showToast('Post published successfully!');
         }
       })
     );
@@ -287,8 +284,7 @@ export class MockDataService {
 
     // Call API
     this.http.post<any>(`${environment.apiUrl}/v1/posts/${postId}/like/`, {}).subscribe({
-      error: (err) => {
-        console.warn('Like API failed, reverting:', err);
+      error: () => {
         // Revert on error
         this.posts.update(currentPosts =>
           currentPosts.map(p => {
@@ -337,7 +333,7 @@ export class MockDataService {
         }
       },
       error: (err) => {
-        console.warn(`Failed to load comments for post ${postId}:`, err);
+        // silent – comments section just stays empty
       }
     });
   }
@@ -376,7 +372,7 @@ export class MockDataService {
         this.loadComments(postId);
       },
       error: (err) => {
-        console.warn('Add comment API failed:', err);
+        this.showToast('Failed to post comment. Please try again.');
       }
     });
   }
@@ -454,7 +450,7 @@ export class MockDataService {
     this.http.post<any>(`${environment.apiUrl}/v1/posts/${postId}/comments/`, {
       content: text
     }).subscribe({
-      error: (err) => console.warn('Reply API failed:', err)
+      error: () => this.showToast('Failed to post reply. Please try again.')
     });
   }
 
@@ -490,8 +486,7 @@ export class MockDataService {
     this.http.post<any>(`${environment.apiUrl}/v1/users/${endpoint}/`, {
       username: username
     }).subscribe({
-      error: (err) => {
-        console.warn(`${endpoint} API failed, reverting:`, err);
+      error: () => {
         // Revert on error
         this.mockUsers.update(users =>
           users.map(u => {
@@ -530,8 +525,7 @@ export class MockDataService {
     this.http.post<any>(`${environment.apiUrl}/v1/users/${endpoint}/`, {
       username: notification.user.username
     }).subscribe({
-      error: (err) => {
-        console.warn(`Follow-back API failed:`, err);
+      error: () => {
         // Revert
         this.notifications.update(notifications =>
           notifications.map(n => {
@@ -567,9 +561,7 @@ export class MockDataService {
         }
         return of([]);
       }),
-      catchError(err => {
-        console.warn('Search users API failed:', err);
-        // Fallback to local filtering
+      catchError(() => {
         const q = query.trim().toLowerCase();
         return of(this.mockUsers().filter(u =>
           u.username.toLowerCase().includes(q) || u.email.toLowerCase().includes(q)
@@ -590,9 +582,7 @@ export class MockDataService {
         }
         return of([]);
       }),
-      catchError(err => {
-        console.warn('Search posts API failed:', err);
-        // Fallback to local filtering
+      catchError(() => {
         const q = query.trim().toLowerCase();
         return of(this.posts().filter(p =>
           p.caption.toLowerCase().includes(q) || p.user.username.toLowerCase().includes(q)
@@ -622,9 +612,7 @@ export class MockDataService {
           this.notifications.set(mapped);
         }
       },
-      error: (err) => {
-        console.warn('Failed to load notifications:', err);
-      }
+      error: () => { /* notifications stay empty */ }
     });
   }
 
@@ -635,7 +623,7 @@ export class MockDataService {
           notifications.map(n => ({ ...n, isRead: true }))
         );
       },
-      error: (err) => console.warn('Mark notifications read failed:', err)
+      error: () => { /* silent – UI badge stays as-is */ }
     });
   }
 
@@ -692,3 +680,5 @@ export class MockDataService {
     }
   }
 }
+
+export { SocialService as MockDataService };
