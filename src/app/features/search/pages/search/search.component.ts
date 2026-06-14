@@ -260,18 +260,23 @@ export class SearchComponent {
   }
 
   filteredHashtags = computed(() => {
-    const query = this.searchQuery().trim().toLowerCase().replace('#', '');
+    const query = this.searchQuery().trim().toLowerCase().replace(/^#/, '');
     if (!query) return [];
 
-    const defaultTags = [
-      { name: 'CoffeeLovers', count: 12 },
-      { name: 'Adventure', count: 8 },
-      { name: 'Hiking', count: 5 },
-      { name: 'Wanderlust', count: 20 },
-      { name: 'NatureLife', count: 14 }
-    ];
+    // Extract hashtags from post captions and count occurrences
+    const tagCounts = new Map<string, number>();
+    for (const post of this.mockData.allPosts()) {
+      const matches = post.caption.match(/#([a-zA-Z0-9_]+)/g) || [];
+      for (const tag of matches) {
+        const name = tag.slice(1);
+        tagCounts.set(name, (tagCounts.get(name) || 0) + 1);
+      }
+    }
 
-    return defaultTags.filter(t => t.name.toLowerCase().includes(query));
+    return Array.from(tagCounts.entries())
+      .filter(([name]) => name.toLowerCase().includes(query))
+      .sort((a, b) => b[1] - a[1])
+      .map(([name, count]) => ({ name, count }));
   });
 
   toggleFollow(username: string) {

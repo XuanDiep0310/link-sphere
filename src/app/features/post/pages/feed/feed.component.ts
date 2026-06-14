@@ -17,6 +17,32 @@ interface ReplyTarget {
   imports: [CommonModule, FormsModule, RouterLink],
   template: `
     <div class="max-w-xl mx-auto space-y-6 sm:py-4">
+      <!-- Feed Tabs -->
+      <div class="bg-slate-100 dark:bg-slate-800/60 p-1 rounded-2xl flex gap-1 border border-slate-100 dark:border-slate-700">
+        <button
+          (click)="switchFeedTab('following')"
+          [class.bg-white]="activeFeedTab() === 'following'"
+          [class.dark:bg-slate-700]="activeFeedTab() === 'following'"
+          [class.text-slate-950]="activeFeedTab() === 'following'"
+          [class.dark:text-white]="activeFeedTab() === 'following'"
+          [class.shadow-sm]="activeFeedTab() === 'following'"
+          [class.text-slate-500]="activeFeedTab() !== 'following'"
+          [class.dark:text-slate-400]="activeFeedTab() !== 'following'"
+          class="flex-1 py-2 text-center text-sm font-bold rounded-xl transition-all duration-200 focus:outline-none"
+        >Following</button>
+        <button
+          (click)="switchFeedTab('forYou')"
+          [class.bg-white]="activeFeedTab() === 'forYou'"
+          [class.dark:bg-slate-700]="activeFeedTab() === 'forYou'"
+          [class.text-slate-950]="activeFeedTab() === 'forYou'"
+          [class.dark:text-white]="activeFeedTab() === 'forYou'"
+          [class.shadow-sm]="activeFeedTab() === 'forYou'"
+          [class.text-slate-500]="activeFeedTab() !== 'forYou'"
+          [class.dark:text-slate-400]="activeFeedTab() !== 'forYou'"
+          class="flex-1 py-2 text-center text-sm font-bold rounded-xl transition-all duration-200 focus:outline-none"
+        >For You</button>
+      </div>
+
       <!-- Loading State -->
       <div *ngIf="isLoadingFeed()" class="flex flex-col items-center justify-center py-20 space-y-4">
         <div class="w-10 h-10 border-3 border-violet-600 border-t-transparent rounded-full animate-spin"></div>
@@ -411,9 +437,16 @@ export class FeedComponent {
   posts = this.mockData.posts;
   currentUser = this.mockData.currentUser;
   isLoadingFeed = this.mockData.isLoadingFeed;
+  activeFeedTab = this.mockData.currentFeedType;
 
   constructor() {
     this.mockData.loadFeed();
+  }
+
+  switchFeedTab(tab: 'following' | 'forYou') {
+    if (tab !== this.activeFeedTab()) {
+      this.mockData.loadFeedByType(tab);
+    }
   }
 
   // Track comments expansion for each post
