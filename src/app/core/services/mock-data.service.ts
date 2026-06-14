@@ -32,6 +32,7 @@ export class MockDataService {
   posts = signal<Post[]>([]);
   allPosts = signal<Post[]>([]);
   isLoadingFeed = signal(false);
+  currentFeedType = signal<'following' | 'forYou'>('following');
 
   // Explore grid items
   exploreItems = signal<ExploreItem[]>([]);
@@ -69,9 +70,37 @@ export class MockDataService {
   // ─── FEED ───────────────────────────────────────────────────────────────
 
   loadFeed() {
+    this.loadFeedByType(this.currentFeedType());
+  }
+
+  loadFeedByType(type: 'following' | 'forYou') {
+    this.currentFeedType.set(type);
     this.isLoadingFeed.set(true);
 
-    // Load ALL posts as the primary source
+    if (type === 'following') {
+      // Personalized feed: posts from followed users
+      this.http.get<{ success: boolean; data?: any }>(`${environment.apiUrl}/v1/feed/`).subscribe({
+        next: (res) => {
+          const rawList = res?.data ? (Array.isArray(res.data) ? res.data : (res.data.results || [])) : [];
+          if (rawList.length > 0) {
+            const mapped = rawList.map((item: any) => this.mapPostFromApi(item));
+            this.posts.set(mapped);
+            this.allPosts.set(mapped);
+            this.updateMockUsersFromPosts(mapped);
+            this.isLoadingFeed.set(false);
+          } else {
+            // Fallback to all posts when following feed is empty
+            this.loadAllPostsForFeed();
+          }
+        },
+        error: () => this.loadAllPostsForFeed()
+      });
+    } else {
+      this.loadAllPostsForFeed();
+    }
+  }
+
+  private loadAllPostsForFeed() {
     this.http.get<{ success: boolean; data?: any }>(`${environment.apiUrl}/v1/posts/`).subscribe({
       next: (res) => {
         if (res && res.data) {
@@ -85,8 +114,7 @@ export class MockDataService {
         }
         this.isLoadingFeed.set(false);
       },
-      error: (err) => {
-        console.warn('API /v1/posts/ failed:', err);
+      error: () => {
         this.posts.set([]);
         this.isLoadingFeed.set(false);
       }
@@ -101,7 +129,7 @@ export class MockDataService {
             id: String(item.id),
             imageUrl: item.image || 'https://images.unsplash.com/photo-1507525428034-b723cf961d3e?w=600',
             likes: item.likes_count || 0,
-            commentsCount: 2,
+            commentsCount: item.comments_count || 0,
             caption: item.content || '',
             username: item.author.username,
             avatarUrl: item.author.avatar || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150'
@@ -154,8 +182,18 @@ export class MockDataService {
     );
   }
 
-  deletePost(postId: string) {
+  deletePost(postId: string): void {
+    // Optimistic remove from UI
     this.posts.update(current => current.filter(p => p.id !== postId));
+    this.allPosts.update(current => current.filter(p => p.id !== postId));
+
+    this.http.delete<any>(`${environment.apiUrl}/v1/posts/${postId}/`).subscribe({
+      error: () => {
+        // Revert on failure and notify
+        this.loadFeed();
+        this.showToast('Failed to delete post. Please try again.');
+      }
+    });
   }
 
   // ─── LIKE/UNLIKE (API INTEGRATED) ──────────────────────────────────────
