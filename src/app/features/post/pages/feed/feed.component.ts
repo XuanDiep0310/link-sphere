@@ -43,11 +43,33 @@ interface ReplyTarget {
         >For You</button>
       </div>
 
-      <!-- Loading State -->
-      <div *ngIf="isLoadingFeed()" class="flex flex-col items-center justify-center py-20 space-y-4">
-        <div class="w-10 h-10 border-3 border-violet-600 border-t-transparent rounded-full animate-spin"></div>
-        <p class="text-sm text-slate-400 dark:text-slate-500 font-medium">Loading feed...</p>
-      </div>
+      <!-- Loading Skeleton -->
+      <ng-container *ngIf="isLoadingFeed()">
+        <div *ngFor="let i of skeletonItems" class="bg-white dark:bg-slate-800 rounded-3xl border border-slate-100 dark:border-slate-700 shadow-xl overflow-hidden">
+          <!-- Skeleton Header -->
+          <div class="px-5 py-4 flex items-center gap-3">
+            <div class="w-10 h-10 rounded-full bg-slate-200 dark:bg-slate-700 animate-pulse flex-shrink-0"></div>
+            <div class="flex-grow space-y-2">
+              <div class="h-3 bg-slate-200 dark:bg-slate-700 rounded-full w-28 animate-pulse"></div>
+              <div class="h-2.5 bg-slate-100 dark:bg-slate-700/60 rounded-full w-20 animate-pulse"></div>
+            </div>
+          </div>
+          <!-- Skeleton Image -->
+          <div class="aspect-square bg-slate-200 dark:bg-slate-700 animate-pulse"></div>
+          <!-- Skeleton Footer -->
+          <div class="px-5 py-4 space-y-3">
+            <div class="flex gap-4">
+              <div class="w-6 h-6 rounded-full bg-slate-200 dark:bg-slate-700 animate-pulse"></div>
+              <div class="w-6 h-6 rounded-full bg-slate-200 dark:bg-slate-700 animate-pulse"></div>
+            </div>
+            <div class="h-3 bg-slate-200 dark:bg-slate-700 rounded-full w-16 animate-pulse"></div>
+            <div class="space-y-2">
+              <div class="h-2.5 bg-slate-200 dark:bg-slate-700 rounded-full w-3/4 animate-pulse"></div>
+              <div class="h-2.5 bg-slate-100 dark:bg-slate-700/60 rounded-full w-1/2 animate-pulse"></div>
+            </div>
+          </div>
+        </div>
+      </ng-container>
 
       <!-- Empty State -->
       <div *ngIf="!isLoadingFeed() && posts().length === 0" class="flex flex-col items-center justify-center py-20 space-y-5">
@@ -448,6 +470,8 @@ export class FeedComponent {
       this.mockData.loadFeedByType(tab);
     }
   }
+
+  skeletonItems = [1, 2, 3];
 
   // Track comments expansion for each post
   expandedComments = signal<Record<string, boolean>>({
