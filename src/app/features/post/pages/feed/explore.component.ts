@@ -1,6 +1,7 @@
 import { Component, ChangeDetectionStrategy, inject, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { MockDataService } from 'src/app/core/services/mock-data.service';
+import { Comment } from 'src/app/core/models/social.model';
 
 interface ExploreItem {
   id: string;
@@ -111,17 +112,22 @@ interface ExploreItem {
               </div>
             </div>
 
-            <!-- Fake Comments List -->
-            <div class="mt-6 border-t border-slate-100 dark:border-slate-700 pt-4 flex-grow space-y-3">
+            <!-- Real Comments -->
+            <div class="mt-6 border-t border-slate-100 dark:border-slate-700 pt-4 flex-grow overflow-y-auto space-y-3 max-h-48">
               <div class="text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">Comments</div>
-              <div class="space-y-2">
-                <div class="flex gap-2">
-                  <span class="font-bold text-slate-800 dark:text-white">mikejohnson</span>
-                  <span class="text-slate-600 dark:text-slate-300">Wow, this looks like an absolute dream spot! 🌟</span>
-                </div>
-                <div class="flex gap-2">
-                  <span class="font-bold text-slate-800 dark:text-white">sarahwilson</span>
-                  <span class="text-slate-600 dark:text-slate-300">Adding this to my bucket list immediately!</span>
+              <div *ngIf="isLoadingComments()" class="flex justify-center py-4">
+                <div class="w-5 h-5 border-2 border-violet-500 border-t-transparent rounded-full animate-spin"></div>
+              </div>
+              <div *ngIf="!isLoadingComments() && selectedItemComments().length === 0" class="text-sm text-slate-400 dark:text-slate-500 text-center py-4">
+                No comments yet
+              </div>
+              <div *ngFor="let c of selectedItemComments()" class="flex gap-2">
+                <img [src]="c.avatarUrl || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150'" class="w-7 h-7 rounded-full object-cover flex-shrink-0">
+                <div class="flex-1 min-w-0">
+                  <p class="text-sm text-slate-700 dark:text-slate-300">
+                    <span class="font-bold text-slate-900 dark:text-white mr-1">{{ c.username }}</span>{{ c.text }}
+                  </p>
+                  <p class="text-[10px] text-slate-400 mt-0.5">{{ c.createdAt }}</p>
                 </div>
               </div>
             </div>
@@ -144,6 +150,8 @@ export class ExploreComponent {
   private mockData = inject(MockDataService);
 
   selectedItem = signal<ExploreItem | null>(null);
+  selectedItemComments = signal<Comment[]>([]);
+  isLoadingComments = signal(false);
 
   exploreItems = this.mockData.exploreItems;
 
@@ -153,9 +161,26 @@ export class ExploreComponent {
 
   openDetail(item: ExploreItem) {
     this.selectedItem.set(item);
+    this.selectedItemComments.set([]);
+    this.isLoadingComments.set(true);
+
+    this.mockData.loadComments(item.id);
+
+    // Poll posts signal to pick up loaded comments
+    const check = () => {
+      const post = this.mockData.posts().find(p => p.id === item.id);
+      if (post && post.comments.length > 0) {
+        this.selectedItemComments.set(post.comments);
+        this.isLoadingComments.set(false);
+      } else {
+        this.isLoadingComments.set(false);
+      }
+    };
+    setTimeout(check, 800);
   }
 
   closeDetail() {
     this.selectedItem.set(null);
+    this.selectedItemComments.set([]);
   }
 }

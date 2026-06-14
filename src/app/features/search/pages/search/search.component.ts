@@ -107,13 +107,19 @@ import { Subject, debounceTime, distinctUntilChanged, switchMap, of } from 'rxjs
                 </div>
               </div>
 
-              <!-- Follow Toggle Simulation Button -->
-              <button 
+              <!-- Follow Toggle Button -->
+              <button
                 *ngIf="user.id !== currentUserId()"
                 (click)="toggleFollow(user.username)"
-                class="px-4 py-1.5 rounded-xl font-bold text-xs bg-slate-100 hover:bg-slate-200 dark:bg-slate-700 dark:hover:bg-slate-600 text-slate-800 dark:text-white transition-colors"
+                [class.bg-violet-600]="!isFollowing(user.username)"
+                [class.text-white]="!isFollowing(user.username)"
+                [class.bg-slate-100]="isFollowing(user.username)"
+                [class.dark:bg-slate-700]="isFollowing(user.username)"
+                [class.text-slate-800]="isFollowing(user.username)"
+                [class.dark:text-white]="isFollowing(user.username)"
+                class="px-4 py-1.5 rounded-xl font-bold text-xs transition-colors"
               >
-                Follow
+                {{ isFollowing(user.username) ? 'Following' : 'Follow' }}
               </button>
             </div>
             <div *ngIf="searchedUsers().length === 0" class="text-center py-10 text-slate-400 dark:text-slate-500 text-sm">
@@ -195,6 +201,9 @@ export class SearchComponent {
   // API search results
   searchedUsers = signal<User[]>([]);
   searchedPosts = signal<Post[]>([]);
+
+  // Track locally which users we've followed in this session
+  private followedUsernames = signal<Set<string>>(new Set());
 
   // Debounce subject
   private searchSubject = new Subject<string>();
@@ -279,7 +288,24 @@ export class SearchComponent {
       .map(([name, count]) => ({ name, count }));
   });
 
+  isFollowing(username: string): boolean {
+    // Check API-returned state first (from search results), then local session state
+    const apiUser = this.searchedUsers().find(u => u.username === username);
+    if (apiUser && (apiUser as any).is_following !== undefined) {
+      return !!(apiUser as any).is_following !== this.followedUsernames().has(username)
+        ? this.followedUsernames().has(username)
+        : !!(apiUser as any).is_following;
+    }
+    return this.followedUsernames().has(username);
+  }
+
   toggleFollow(username: string) {
+    const currently = this.isFollowing(username);
+    this.followedUsernames.update(set => {
+      const next = new Set(set);
+      currently ? next.delete(username) : next.add(username);
+      return next;
+    });
     this.mockData.toggleFollowByUsername(username);
   }
 }
