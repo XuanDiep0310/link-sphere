@@ -43,6 +43,27 @@ export class SocialService {
     this.notifications().filter(n => !n.isRead).length
   );
 
+  // Bookmark State — persisted to localStorage
+  // TODO: replace with real API when POST /v1/posts/{id}/bookmark/ is available
+  private bookmarkedIds = signal<Set<string>>(this.loadBookmarksFromStorage());
+
+  bookmarkedPosts = computed(() =>
+    this.allPosts().filter(p => this.bookmarkedIds().has(p.id))
+  );
+
+  private loadBookmarksFromStorage(): Set<string> {
+    try {
+      const raw = localStorage.getItem('bookmarked_post_ids');
+      return raw ? new Set<string>(JSON.parse(raw)) : new Set<string>();
+    } catch {
+      return new Set<string>();
+    }
+  }
+
+  private saveBookmarksToStorage(ids: Set<string>) {
+    localStorage.setItem('bookmarked_post_ids', JSON.stringify(Array.from(ids)));
+  }
+
   // Toast notification
   toastMessage = signal<string | null>(null);
 
@@ -298,9 +319,19 @@ export class SocialService {
   }
 
   toggleBookmark(postId: string) {
-    this.posts.update(currentPosts =>
-      currentPosts.map(p => (p.id === postId ? { ...p, hasBookmarked: !p.hasBookmarked } : p))
-    );
+    // TODO: replace with real API when POST /v1/posts/{id}/bookmark/ is available
+    const next = new Set(this.bookmarkedIds());
+    const isNowBookmarked = !next.has(postId);
+    isNowBookmarked ? next.add(postId) : next.delete(postId);
+    this.bookmarkedIds.set(next);
+    this.saveBookmarksToStorage(next);
+
+    const update = (p: Post) =>
+      p.id === postId ? { ...p, hasBookmarked: isNowBookmarked } : p;
+    this.posts.update(list => list.map(update));
+    this.allPosts.update(list => list.map(update));
+
+    this.showToast(isNowBookmarked ? 'Post saved to bookmarks.' : 'Removed from bookmarks.');
   }
 
   // ─── COMMENTS (API INTEGRATED) ─────────────────────────────────────────
@@ -655,7 +686,7 @@ export class SocialService {
       caption: item.content || '',
       likes: item.likes_count || 0,
       hasLiked: item.is_liked === 'true' || item.is_liked === true || String(item.is_liked).toLowerCase() === 'true',
-      hasBookmarked: false,
+      hasBookmarked: this.bookmarkedIds().has(String(item.id)),
       comments: [],
       commentsCount: item.comments_count || 0,
       createdAt: this.formatTimeAgo(item.created_at)
