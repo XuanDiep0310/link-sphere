@@ -105,8 +105,44 @@ import { environment } from 'src/environments/environment';
 
       <!-- Grid Posts -->
       <div *ngIf="!isLoadingProfile()" class="space-y-4">
-        <h3 class="text-lg font-extrabold text-slate-800 dark:text-white">Posts</h3>
-        
+
+        <!-- Tabs: Posts / Saved (Saved only on own profile) -->
+        <div class="flex border-b border-slate-200 dark:border-slate-700">
+          <button
+            (click)="activeProfileTab.set('posts')"
+            [class.border-b-2]="activeProfileTab() === 'posts'"
+            [class.border-slate-800]="activeProfileTab() === 'posts'"
+            [class.dark:border-white]="activeProfileTab() === 'posts'"
+            [class.text-slate-800]="activeProfileTab() === 'posts'"
+            [class.dark:text-white]="activeProfileTab() === 'posts'"
+            [class.text-slate-400]="activeProfileTab() !== 'posts'"
+            class="flex-1 py-3 text-xs font-bold uppercase tracking-widest transition-colors flex items-center justify-center gap-1.5"
+          >
+            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="w-4 h-4">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M3.75 6A2.25 2.25 0 016 3.75h2.25A2.25 2.25 0 0110.5 6v2.25a2.25 2.25 0 01-2.25 2.25H6a2.25 2.25 0 01-2.25-2.25V6zM3.75 15.75A2.25 2.25 0 016 13.5h2.25a2.25 2.25 0 012.25 2.25V18a2.25 2.25 0 01-2.25 2.25H6A2.25 2.25 0 013.75 18v-2.25zM13.5 6a2.25 2.25 0 012.25-2.25H18A2.25 2.25 0 0120.25 6v2.25A2.25 2.25 0 0118 10.5h-2.25a2.25 2.25 0 01-2.25-2.25V6zM13.5 15.75a2.25 2.25 0 012.25-2.25H18a2.25 2.25 0 012.25 2.25V18A2.25 2.25 0 0118 20.25h-2.25A2.25 2.25 0 0113.5 18v-2.25z" />
+            </svg>
+            Posts
+          </button>
+          <button
+            *ngIf="isOwnProfile()"
+            (click)="activeProfileTab.set('saved')"
+            [class.border-b-2]="activeProfileTab() === 'saved'"
+            [class.border-slate-800]="activeProfileTab() === 'saved'"
+            [class.dark:border-white]="activeProfileTab() === 'saved'"
+            [class.text-slate-800]="activeProfileTab() === 'saved'"
+            [class.dark:text-white]="activeProfileTab() === 'saved'"
+            [class.text-slate-400]="activeProfileTab() !== 'saved'"
+            class="flex-1 py-3 text-xs font-bold uppercase tracking-widest transition-colors flex items-center justify-center gap-1.5"
+          >
+            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="w-4 h-4">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M17.593 3.322c1.1.128 1.907 1.077 1.907 2.185V21L12 17.25 4.5 21V5.507c0-1.108.806-2.057 1.907-2.185a48.507 48.507 0 0111.186 0z" />
+            </svg>
+            Saved
+          </button>
+        </div>
+
+        <!-- Posts Tab -->
+        <div *ngIf="activeProfileTab() === 'posts'">
         <div *ngIf="userPosts().length > 0; else emptyState" class="grid grid-cols-2 sm:grid-cols-3 gap-4">
           <div 
             *ngFor="let post of userPosts()"
@@ -122,7 +158,7 @@ import { environment } from 'src/environments/environment';
           </div>
         </div>
 
-        <!-- Empty State -->
+        <!-- Empty Posts State -->
         <ng-template #emptyState>
           <div class="text-center py-16 bg-white dark:bg-slate-800 rounded-3xl border border-slate-100 dark:border-slate-700">
             <div class="w-16 h-16 bg-slate-50 dark:bg-slate-900 rounded-full flex items-center justify-center mx-auto text-slate-400 mb-3">
@@ -135,6 +171,42 @@ import { environment } from 'src/environments/environment';
             <p class="text-xs text-slate-400 dark:text-slate-500 mt-1">This user hasn't uploaded any posts yet.</p>
           </div>
         </ng-template>
+        </div>
+
+        <!-- Saved Tab -->
+        <div *ngIf="activeProfileTab() === 'saved' && isOwnProfile()">
+          <div *ngIf="savedPosts().length > 0; else emptySaved" class="grid grid-cols-2 sm:grid-cols-3 gap-4">
+            <div
+              *ngFor="let post of savedPosts()"
+              (click)="openPostDetail(post)"
+              class="aspect-square rounded-2xl overflow-hidden relative group shadow-sm hover:shadow-lg transition-all bg-slate-100 dark:bg-slate-900 border border-slate-100 dark:border-slate-700 cursor-pointer"
+            >
+              <img [src]="post.imageUrl" class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" alt="saved post">
+              <div class="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-4 text-white font-bold text-sm">
+                <span>❤️ {{ post.likes }}</span>
+                <span>💬 {{ post.commentsCount || post.comments.length }}</span>
+              </div>
+              <!-- Bookmark badge -->
+              <div class="absolute top-2 right-2 text-violet-400">
+                <svg xmlns="http://www.w3.org/2000/svg" fill="currentColor" viewBox="0 0 24 24" class="w-5 h-5 drop-shadow">
+                  <path d="M17.593 3.322c1.1.128 1.907 1.077 1.907 2.185V21L12 17.25 4.5 21V5.507c0-1.108.806-2.057 1.907-2.185a48.507 48.507 0 0111.186 0z" />
+                </svg>
+              </div>
+            </div>
+          </div>
+          <ng-template #emptySaved>
+            <div class="text-center py-16 bg-white dark:bg-slate-800 rounded-3xl border border-slate-100 dark:border-slate-700">
+              <div class="w-16 h-16 bg-slate-50 dark:bg-slate-900 rounded-full flex items-center justify-center mx-auto text-slate-400 mb-3">
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-8 h-8">
+                  <path stroke-linecap="round" stroke-linejoin="round" d="M17.593 3.322c1.1.128 1.907 1.077 1.907 2.185V21L12 17.25 4.5 21V5.507c0-1.108.806-2.057 1.907-2.185a48.507 48.507 0 0111.186 0z" />
+                </svg>
+              </div>
+              <h4 class="font-bold text-slate-700 dark:text-slate-300">No Saved Posts</h4>
+              <p class="text-xs text-slate-400 dark:text-slate-500 mt-1">Tap the bookmark icon on any post to save it here.</p>
+            </div>
+          </ng-template>
+        </div>
+
       </div>
     </div>
 
@@ -346,6 +418,9 @@ export class ProfileComponent {
   private externalUser = signal<User | null>(null);
   isFollowingProfile = signal(false);
 
+  // Profile tabs
+  activeProfileTab = signal<'posts' | 'saved'>('posts');
+
   // Edit Profile modal state
   showEditProfile = signal(false);
   editBio = '';
@@ -356,6 +431,7 @@ export class ProfileComponent {
       const username = params.get('username');
       this.profileUsername.set(username);
       this.externalUser.set(null);
+      this.activeProfileTab.set('posts');
 
       this.mockData.loadAllPosts();
       if (username) {
@@ -425,6 +501,8 @@ export class ProfileComponent {
     const user = this.profileUser();
     return this.mockData.getUserPosts(user.username);
   });
+
+  savedPosts = computed(() => this.mockData.bookmarkedPosts());
 
   toggleFollowUser() {
     const username = this.profileUser().username;
