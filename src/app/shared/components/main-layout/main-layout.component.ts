@@ -265,7 +265,7 @@ import { ChatService } from 'src/app/features/chat/services/chat.service';
             <!-- Submit -->
             <button 
               (click)="submitPost()"
-              [disabled]="!caption.trim() || !selectedFile() || isPosting()"
+              [disabled]="!caption.trim() || isPosting()"
               class="px-6 py-2.5 bg-violet-600 hover:bg-violet-700 disabled:opacity-40 disabled:cursor-not-allowed text-white font-bold rounded-2xl shadow-lg shadow-violet-500/20 transform hover:scale-[1.02] active:scale-95 transition-all text-sm flex items-center gap-2"
             >
               <span *ngIf="!isPosting()">Post</span>
@@ -287,9 +287,24 @@ import { ChatService } from 'src/app/features/chat/services/chat.service';
       *ngIf="toastMessage()"
       class="fixed bottom-6 left-1/2 -translate-x-1/2 z-[100] animate-slide-up"
     >
-      <div class="flex items-center gap-3 px-6 py-3.5 bg-emerald-600 text-white rounded-2xl shadow-2xl shadow-emerald-500/30 font-bold text-sm">
+      <!-- Success -->
+      <div *ngIf="toastType() === 'success'" class="flex items-center gap-3 px-6 py-3.5 bg-emerald-600 text-white rounded-2xl shadow-2xl shadow-emerald-500/30 font-bold text-sm">
         <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2.5" stroke="currentColor" class="w-5 h-5 flex-shrink-0">
           <path stroke-linecap="round" stroke-linejoin="round" d="M9 12.75L11.25 15 15 9.75M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+        </svg>
+        {{ toastMessage() }}
+      </div>
+      <!-- Warning -->
+      <div *ngIf="toastType() === 'warning'" class="flex items-center gap-3 px-6 py-3.5 bg-amber-500 text-white rounded-2xl shadow-2xl shadow-amber-500/30 font-bold text-sm">
+        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2.5" stroke="currentColor" class="w-5 h-5 flex-shrink-0">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126zM12 15.75h.007v.008H12v-.008z" />
+        </svg>
+        {{ toastMessage() }}
+      </div>
+      <!-- Error -->
+      <div *ngIf="toastType() === 'error'" class="flex items-center gap-3 px-6 py-3.5 bg-red-600 text-white rounded-2xl shadow-2xl shadow-red-500/30 font-bold text-sm">
+        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2.5" stroke="currentColor" class="w-5 h-5 flex-shrink-0">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M12 9v3.75m9-.75a9 9 0 11-18 0 9 9 0 0118 0zm-9 3.75h.008v.008H12v-.008z" />
         </svg>
         {{ toastMessage() }}
       </div>
@@ -314,6 +329,7 @@ export class MainLayoutComponent {
   currentUser = this.mockData.currentUser;
   unreadCount = this.mockData.unreadNotificationCount;
   toastMessage = this.mockData.toastMessage;
+  toastType = this.mockData.toastType;
 
   constructor() {
     this.mockData.loadNotifications();
@@ -385,10 +401,9 @@ export class MainLayoutComponent {
           this.closeCreateModal();
           this.router.navigate(['/']);
         },
-        error: (err) => {
-          console.error('Failed to publish post:', err);
+        error: () => {
           this.isPosting.set(false);
-          alert('Failed to publish post. Please try again.');
+          this.mockData.showToast('Failed to publish post. Please try again.', 'error');
         }
       });
     }

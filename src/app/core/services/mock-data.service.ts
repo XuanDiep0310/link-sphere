@@ -66,8 +66,10 @@ export class SocialService {
 
   // Toast notification
   toastMessage = signal<string | null>(null);
+  toastType = signal<'success' | 'warning' | 'error'>('success');
 
-  showToast(message: string) {
+  showToast(message: string, type: 'success' | 'warning' | 'error' = 'success') {
+    this.toastType.set(type);
     this.toastMessage.set(message);
     setTimeout(() => this.toastMessage.set(null), 3000);
   }

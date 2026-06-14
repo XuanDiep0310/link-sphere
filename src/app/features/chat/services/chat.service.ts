@@ -341,8 +341,8 @@ export class ChatService {
     this.hasMoreMessages.set(true);
   }
 
-  showToast(message: string) {
-    this.mockData.showToast(message);
+  showToast(message: string, type: 'success' | 'warning' | 'error' = 'success') {
+    this.mockData.showToast(message, type);
   }
 
   private mapConversation(c: any): Conversation {
