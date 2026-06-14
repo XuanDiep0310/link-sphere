@@ -240,13 +240,11 @@ export class SocialService {
     this.posts.update(current => current.filter(p => p.id !== postId));
     this.allPosts.update(current => current.filter(p => p.id !== postId));
 
-    this.http.delete<any>(`${environment.apiUrl}/v1/posts/${postId}/`).subscribe({
-      error: () => {
-        // Revert on failure and notify
-        this.loadFeed();
-        this.showToast('Failed to delete post. Please try again.');
-      }
-    });
+    // TODO: replace with real API call when DELETE /v1/posts/{post_id}/ is available
+    // this.http.delete<any>(`${environment.apiUrl}/v1/posts/${postId}/`).subscribe({
+    //   error: () => { this.loadFeed(); this.showToast('Failed to delete post.'); }
+    // });
+    this.showToast('Post deleted successfully.');
   }
 
   // ─── LIKE/UNLIKE (API INTEGRATED) ──────────────────────────────────────
@@ -658,6 +656,42 @@ export class SocialService {
       comments: [],
       createdAt: this.formatTimeAgo(item.created_at)
     };
+  }
+
+  // ─── USER POSTS (MOCK — TODO: GET /v1/users/{username}/posts/) ────────────
+
+  userPostsMap = signal<Record<string, Post[]>>({});
+  isLoadingUserPosts = signal(false);
+
+  loadUserPosts(username: string): void {
+    this.isLoadingUserPosts.set(true);
+    // TODO: replace with real API when GET /v1/users/{username}/posts/ is ready
+    // this.http.get<any>(`${environment.apiUrl}/v1/users/${username}/posts/`).subscribe({ ... })
+    const fromAll = this.allPosts().filter(p => p.user.username === username);
+    this.userPostsMap.update(m => ({ ...m, [username]: fromAll }));
+    this.isLoadingUserPosts.set(false);
+  }
+
+  getUserPosts(username: string) {
+    return this.userPostsMap().hasOwnProperty(username)
+      ? this.userPostsMap()[username]
+      : this.allPosts().filter(p => p.user.username === username);
+  }
+
+  // ─── UPDATE PROFILE (MOCK — TODO: PATCH /v1/users/profile/) ──────────────
+
+  updateProfile(bio: string, avatarUrl: string): void {
+    // TODO: replace with real API when PATCH /v1/users/profile/ is ready
+    // const formData = new FormData();
+    // formData.append('bio', bio);
+    // if (avatarFile) formData.append('avatar', avatarFile);
+    // this.http.patch<any>(`${environment.apiUrl}/v1/users/profile/`, formData).subscribe(...)
+
+    // Mock: update local state + localStorage immediately
+    this.authService.updateCurrentUser({ bio, avatarUrl });
+    localStorage.setItem('logged_in_bio', bio);
+    if (avatarUrl) localStorage.setItem('logged_in_avatar', avatarUrl);
+    this.showToast('Profile updated successfully!');
   }
 
   formatTimeAgo(dateStr: string): string {

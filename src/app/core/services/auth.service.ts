@@ -147,6 +147,13 @@ export class AuthService {
     );
   }
 
+  updateCurrentUser(updates: Partial<User>) {
+    const current = this._user();
+    if (current) {
+      this._user.set({ ...current, ...updates });
+    }
+  }
+
   private checkSession() {
     const token = localStorage.getItem('access_token');
     if (token) {
