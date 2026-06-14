@@ -6,6 +6,8 @@ import { MockDataService } from 'src/app/core/services/mock-data.service';
 import { AuthService } from 'src/app/core/services/auth.service';
 import { User } from 'src/app/core/models/auth.model';
 import { Post } from 'src/app/core/models/social.model';
+import { HttpClient } from '@angular/common/http';
+import { environment } from 'src/environments/environment';
 
 @Component({
   selector: 'app-profile',
@@ -13,8 +15,12 @@ import { Post } from 'src/app/core/models/social.model';
   imports: [CommonModule, FormsModule, RouterLink],
   template: `
     <div class="max-w-2xl mx-auto space-y-8 sm:py-6 animate-fade-in">
+      <!-- Profile Loading State -->
+      <div *ngIf="isLoadingProfile()" class="flex justify-center py-20">
+        <div class="w-10 h-10 border-3 border-violet-600 border-t-transparent rounded-full animate-spin"></div>
+      </div>
       <!-- Profile Information Card -->
-      <div class="bg-white dark:bg-slate-800 rounded-3xl border border-slate-100 dark:border-slate-700 p-6 sm:p-8 shadow-xl flex flex-col sm:flex-row items-center gap-6 sm:gap-8 transition-colors duration-300">
+      <div *ngIf="!isLoadingProfile()" class="bg-white dark:bg-slate-800 rounded-3xl border border-slate-100 dark:border-slate-700 p-6 sm:p-8 shadow-xl flex flex-col sm:flex-row items-center gap-6 sm:gap-8 transition-colors duration-300">
         <!-- Avatar image -->
         <div class="w-24 h-24 sm:w-32 sm:h-32 rounded-full overflow-hidden border-4 border-violet-50 dark:border-violet-950 shadow-md flex-shrink-0">
           <img 
@@ -89,7 +95,7 @@ import { Post } from 'src/app/core/models/social.model';
       </div>
 
       <!-- Grid Posts -->
-      <div class="space-y-4">
+      <div *ngIf="!isLoadingProfile()" class="space-y-4">
         <h3 class="text-lg font-extrabold text-slate-800 dark:text-white">Posts</h3>
         
         <div *ngIf="userPosts().length > 0; else emptyState" class="grid grid-cols-2 sm:grid-cols-3 gap-4">
@@ -255,15 +261,55 @@ export class ProfileComponent {
   private route = inject(ActivatedRoute);
   private mockData = inject(MockDataService);
   private authService = inject(AuthService);
+  private http = inject(HttpClient);
 
   profileUsername = signal<string | null>(null);
   selectedPost = signal<Post | null>(null);
   newComment = '';
+  isLoadingProfile = signal(false);
+
+  // Holds the fetched profile data for other users
+  private externalUser = signal<User | null>(null);
+  // Tracks follow state for the viewed profile
+  isFollowingProfile = signal(false);
 
   constructor() {
     this.route.paramMap.subscribe(params => {
-      this.profileUsername.set(params.get('username'));
+      const username = params.get('username');
+      this.profileUsername.set(username);
+      this.externalUser.set(null);
       this.mockData.loadAllPosts();
+
+      if (username && username !== this.mockData.currentUser().username) {
+        this.fetchUserProfile(username);
+      }
+    });
+  }
+
+  private fetchUserProfile(username: string) {
+    this.isLoadingProfile.set(true);
+    this.http.get<{ success: boolean; data?: { results: any[] } }>(
+      `${environment.apiUrl}/v1/search/users/`, { params: { q: username } }
+    ).subscribe({
+      next: (res) => {
+        const results = res?.data?.results || [];
+        const found = results.find((u: any) => u.username === username);
+        if (found) {
+          const user: User = {
+            id: String(found.id),
+            email: found.email || '',
+            username: found.username,
+            avatarUrl: found.avatar || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150',
+            followersCount: found.followers_count || 0,
+            followingCount: found.following_count || 0,
+            bio: found.bio
+          };
+          this.externalUser.set(user);
+          this.isFollowingProfile.set(found.is_following ?? false);
+        }
+        this.isLoadingProfile.set(false);
+      },
+      error: () => this.isLoadingProfile.set(false)
     });
   }
 
@@ -272,27 +318,26 @@ export class ProfileComponent {
     return !username || username === this.mockData.currentUser().username;
   });
 
-  profileUser = computed(() => {
-    const username = this.profileUsername();
+  profileUser = computed((): User => {
     if (this.isOwnProfile()) {
       return this.mockData.currentUser();
     }
-    const foundUser = this.mockData.mockUsers().find(u => u.username === username);
-    return foundUser || {
-      id: 'mock_id',
-      email: `${username}@linksphere.com`,
+    const username = this.profileUsername();
+    // Prefer freshly fetched data; fall back to what we know from posts
+    const fetched = this.externalUser();
+    if (fetched) return fetched;
+    const fromPosts = this.mockData.mockUsers().find(u => u.username === username);
+    return fromPosts || {
+      id: '',
+      email: '',
       username: username || 'user',
-      avatarUrl: `https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150`,
-      followersCount: 152,
-      followingCount: 94
+      avatarUrl: 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150',
+      followersCount: 0,
+      followingCount: 0
     };
   });
 
-  isFollowing = computed(() => {
-    const user = this.profileUser();
-    const found = this.mockData.mockUsers().find(u => u.username === user.username);
-    return !!(found as any)?._isFollowing;
-  });
+  isFollowing = computed(() => this.isFollowingProfile());
 
   userPosts = computed(() => {
     const user = this.profileUser();
@@ -301,6 +346,20 @@ export class ProfileComponent {
 
   toggleFollowUser() {
     const username = this.profileUser().username;
+    const nowFollowing = !this.isFollowingProfile();
+    this.isFollowingProfile.set(nowFollowing);
+
+    // Update follower count optimistically
+    const current = this.externalUser();
+    if (current) {
+      this.externalUser.set({
+        ...current,
+        followersCount: nowFollowing
+          ? (current.followersCount || 0) + 1
+          : Math.max(0, (current.followersCount || 0) - 1)
+      });
+    }
+
     this.mockData.toggleFollowByUsername(username);
   }
 
