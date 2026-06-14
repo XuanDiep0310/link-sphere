@@ -605,7 +605,9 @@ export class SocialService {
             details: n.message || this.getNotificationText(n.type),
             createdAt: this.formatTimeAgo(n.created_at),
             isRead: n.is_read || false,
-            isFollowingBack: false
+            isFollowingBack: false,
+            // TODO: backend cần trả về post_id trong response
+            postId: n.post_id ? String(n.post_id) : undefined
           }));
           this.notifications.set(mapped);
         }

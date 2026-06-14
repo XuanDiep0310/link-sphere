@@ -2,8 +2,7 @@ import { Component, ChangeDetectionStrategy, inject, signal } from '@angular/cor
 import { CommonModule } from '@angular/common';
 import { MockDataService } from 'src/app/core/services/mock-data.service';
 import { Notification } from 'src/app/core/models/social.model';
-
-import { RouterLink } from '@angular/router';
+import { RouterLink, Router } from '@angular/router';
 
 @Component({
   selector: 'app-notifications',
@@ -69,9 +68,9 @@ import { RouterLink } from '@angular/router';
             </button>
 
             <!-- View Action -->
-            <button 
-              *ngIf="notification.type === 'like' || notification.type === 'comment'" 
-              routerLink="/"
+            <button
+              *ngIf="notification.type === 'like' || notification.type === 'comment'"
+              (click)="viewPost(notification)"
               class="px-4 py-2 bg-slate-50 hover:bg-slate-100 dark:bg-slate-700 dark:hover:bg-slate-600 text-slate-700 dark:text-slate-200 rounded-xl text-xs font-bold transition-colors border border-slate-200/40 dark:border-slate-600/40"
             >
               View
@@ -96,13 +95,12 @@ import { RouterLink } from '@angular/router';
 })
 export class NotificationsComponent {
   private mockData = inject(MockDataService);
+  private router = inject(Router);
 
   notifications = this.mockData.notifications;
 
   constructor() {
-    // Load notifications from API
     this.mockData.loadNotifications();
-    // Mark all as read when viewing
     setTimeout(() => this.mockData.markNotificationsRead(), 2000);
   }
 
@@ -112,5 +110,16 @@ export class NotificationsComponent {
 
   toggleFollowBack(notificationId: string) {
     this.mockData.toggleFollowNotification(notificationId);
+  }
+
+  viewPost(notification: Notification) {
+    if (notification.postId) {
+      // TODO: navigate to specific post when post detail route is available
+      // this.router.navigate(['/posts', notification.postId]);
+      this.router.navigate(['/profile', notification.user.username]);
+    } else {
+      // Fallback: go to the sender's profile
+      this.router.navigate(['/profile', notification.user.username]);
+    }
   }
 }

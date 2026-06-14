@@ -44,4 +44,5 @@ export interface Notification {
   createdAt: string;
   isRead?: boolean;
   isFollowingBack?: boolean;
+  postId?: string;
 }
