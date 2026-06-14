@@ -17,6 +17,7 @@ export class LoginComponent {
   private authService = inject(AuthService);
   
   isLoading = signal(false);
+  errorMessage = signal<string | null>(null);
 
   loginForm = this.fb.group({
     username: ['', [Validators.required]],
@@ -26,6 +27,7 @@ export class LoginComponent {
   onSubmit() {
     if (this.loginForm.valid) {
       this.isLoading.set(true);
+      this.errorMessage.set(null);
       const val = this.loginForm.value;
       this.authService.login({
         username: val.username,
@@ -35,8 +37,9 @@ export class LoginComponent {
           this.isLoading.set(false);
         },
         error: (err) => {
-          console.error(err);
           this.isLoading.set(false);
+          const msg = err?.error?.message || err?.error?.detail || 'Invalid username or password.';
+          this.errorMessage.set(msg);
         }
       });
     }

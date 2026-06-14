@@ -17,6 +17,7 @@ export class RegisterComponent {
   private authService = inject(AuthService);
   
   isLoading = signal(false);
+  errorMessage = signal<string | null>(null);
 
   registerForm = this.fb.group({
     fullName: ['', [Validators.required]],
@@ -39,23 +40,21 @@ export class RegisterComponent {
 
       this.authService.register(payload).subscribe({
         next: () => {
-          // Auto log in after registering
           this.authService.login({
             username: val.username,
             password: val.password
           }).subscribe({
-            next: () => {
-              this.isLoading.set(false);
-            },
-            error: (err) => {
-              console.error('Auto login failed:', err);
-              this.isLoading.set(false);
-            }
+            next: () => { this.isLoading.set(false); },
+            error: () => { this.isLoading.set(false); }
           });
         },
         error: (err) => {
-          console.error('Registration failed:', err);
           this.isLoading.set(false);
+          const data = err?.error;
+          const msg = data?.message || data?.detail ||
+            (data?.username?.[0]) || (data?.email?.[0]) || (data?.password?.[0]) ||
+            'Registration failed. Please try again.';
+          this.errorMessage.set(msg);
         }
       });
     }
