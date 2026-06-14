@@ -51,7 +51,63 @@ export class MockDataService {
     setTimeout(() => this.toastMessage.set(null), 3000);
   }
 
+  private notifWs: WebSocket | null = null;
+  private notifReconnectAttempts = 0;
+  private readonly MAX_RECONNECT = 5;
+
   constructor() {}
+
+  // ─── NOTIFICATIONS WEBSOCKET ─────────────────────────────────────────────
+
+  connectNotificationsWs() {
+    const token = localStorage.getItem('access_token');
+    if (!token || this.notifWs?.readyState === WebSocket.OPEN) return;
+
+    let wsBase = environment.wsUrl;
+    if (wsBase.startsWith('https://')) wsBase = wsBase.replace('https://', 'wss://');
+    else if (wsBase.startsWith('http://')) wsBase = wsBase.replace('http://', 'ws://');
+
+    try {
+      const urlObj = new URL(wsBase);
+      wsBase = `${urlObj.protocol}//${urlObj.host}`;
+    } catch { /* keep as-is */ }
+
+    const wsUrl = `${wsBase}/ws/notifications/?token=${token}`;
+
+    try {
+      this.notifWs = new WebSocket(wsUrl);
+
+      this.notifWs.onopen = () => {
+        this.notifReconnectAttempts = 0;
+      };
+
+      this.notifWs.onmessage = (event) => {
+        try {
+          const data = JSON.parse(event.data);
+          // Reload notifications to get latest from server
+          if (data.type === 'notification' || data.notification) {
+            this.loadNotifications();
+          }
+        } catch { /* ignore parse errors */ }
+      };
+
+      this.notifWs.onclose = () => {
+        if (this.notifReconnectAttempts < this.MAX_RECONNECT) {
+          this.notifReconnectAttempts++;
+          setTimeout(() => this.connectNotificationsWs(), 5000);
+        }
+      };
+    } catch { /* WebSocket not available */ }
+  }
+
+  disconnectNotificationsWs() {
+    if (this.notifWs) {
+      this.notifWs.onclose = null;
+      this.notifWs.close();
+      this.notifWs = null;
+    }
+    this.notifReconnectAttempts = 0;
+  }
 
   // Helper to dynamically collect unique users from posts list to support search and profiles
   updateMockUsersFromPosts(postsList: Post[]) {

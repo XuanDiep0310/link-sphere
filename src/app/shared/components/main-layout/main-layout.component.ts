@@ -300,6 +300,8 @@ export class MainLayoutComponent {
   constructor() {
     // Load notifications on init for badge count
     this.mockData.loadNotifications();
+    // Connect to real-time notifications WebSocket
+    this.mockData.connectNotificationsWs();
     // Load chat conversations for unread badge
     this.chatService.loadConversations();
   }
