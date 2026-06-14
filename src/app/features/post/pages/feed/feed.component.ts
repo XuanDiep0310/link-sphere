@@ -197,12 +197,12 @@ interface ReplyTarget {
           </p>
 
           <!-- Comment Toggle Text -->
-          <button 
-            *ngIf="post.comments.length > 0"
+          <button
+            *ngIf="post.commentsCount > 0 || post.comments.length > 0"
             (click)="toggleComments(post.id)"
             class="text-xs text-slate-400 dark:text-slate-500 font-bold hover:underline mb-2 block"
           >
-            {{ isCommentsOpen(post.id) ? 'Hide' : 'View all ' + post.comments.length }} comments
+            {{ isCommentsOpen(post.id) ? 'Hide comments' : 'View all ' + (post.commentsCount || post.comments.length) + ' comments' }}
           </button>
 
           <!-- Threaded Comments Area -->

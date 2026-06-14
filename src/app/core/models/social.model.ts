@@ -20,6 +20,7 @@ export interface Post {
   hasLiked: boolean;
   hasBookmarked: boolean;
   comments: Comment[];
+  commentsCount: number;
   createdAt: string;
 }
 

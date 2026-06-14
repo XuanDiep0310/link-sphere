@@ -354,7 +354,8 @@ export class SocialService {
         if (p.id === postId) {
           return {
             ...p,
-            comments: [...p.comments, newComment]
+            comments: [...p.comments, newComment],
+            commentsCount: (p.commentsCount || 0) + 1
           };
         }
         return p;
@@ -656,6 +657,7 @@ export class SocialService {
       hasLiked: item.is_liked === 'true' || item.is_liked === true || String(item.is_liked).toLowerCase() === 'true',
       hasBookmarked: false,
       comments: [],
+      commentsCount: item.comments_count || 0,
       createdAt: this.formatTimeAgo(item.created_at)
     };
   }

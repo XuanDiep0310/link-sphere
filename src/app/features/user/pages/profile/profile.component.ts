@@ -117,7 +117,7 @@ import { environment } from 'src/environments/environment';
             <!-- Hover overlay -->
             <div class="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-4 text-white font-bold text-sm">
               <span>❤️ {{ post.likes }}</span>
-              <span>💬 {{ post.comments.length }}</span>
+              <span>💬 {{ post.commentsCount || post.comments.length }}</span>
             </div>
           </div>
         </div>
