@@ -446,13 +446,12 @@ export class ProfileComponent {
 
   private fetchUserProfile(username: string) {
     this.isLoadingProfile.set(true);
-    this.http.get<{ success: boolean; data?: { results: any[] } }>(
-      `${environment.apiUrl}/v1/search/users/`, { params: { q: username } }
+    this.http.get<{ success: boolean; data?: any }>(
+      `${environment.apiUrl}/v1/users/${username}/`
     ).subscribe({
       next: (res) => {
-        const results = res?.data?.results || [];
-        const found = results.find((u: any) => u.username === username);
-        if (found) {
+        const found = res?.data ?? (res as any);
+        if (found && found.username) {
           const user: User = {
             id: String(found.id),
             email: found.email || '',
@@ -467,7 +466,30 @@ export class ProfileComponent {
         }
         this.isLoadingProfile.set(false);
       },
-      error: () => this.isLoadingProfile.set(false)
+      error: () => {
+        // Fallback: search by username if dedicated endpoint not available
+        this.http.get<{ success: boolean; data?: { results: any[] } }>(
+          `${environment.apiUrl}/v1/search/users/`, { params: { q: username } }
+        ).subscribe({
+          next: (res) => {
+            const found = (res?.data?.results || []).find((u: any) => u.username === username);
+            if (found) {
+              this.externalUser.set({
+                id: String(found.id),
+                email: found.email || '',
+                username: found.username,
+                avatarUrl: found.avatar || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150',
+                followersCount: found.followers_count || 0,
+                followingCount: found.following_count || 0,
+                bio: found.bio
+              });
+              this.isFollowingProfile.set(found.is_following ?? false);
+            }
+            this.isLoadingProfile.set(false);
+          },
+          error: () => this.isLoadingProfile.set(false)
+        });
+      }
     });
   }
 

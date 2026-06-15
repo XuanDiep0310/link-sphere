@@ -16,12 +16,12 @@ export class SocialService {
   // Current user state (computed from AuthService state)
   currentUser = computed<User>(() => {
     return this.authService.currentUser() || {
-      id: '1',
-      email: 'johndoe@linksphere.com',
-      username: 'johndoe',
-      avatarUrl: 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150',
-      followersCount: 1240,
-      followingCount: 482
+      id: '',
+      email: '',
+      username: '',
+      avatarUrl: '',
+      followersCount: 0,
+      followingCount: 0
     };
   });
 
@@ -634,6 +634,41 @@ export class SocialService {
         return of(this.mockUsers().filter(u =>
           u.username.toLowerCase().includes(q) || u.email.toLowerCase().includes(q)
         ));
+      })
+    );
+  }
+
+  searchHashtags(query: string): Observable<{ name: string; count: number }[]> {
+    if (!query.trim()) return of([]);
+    const q = query.trim().toLowerCase().replace(/^#/, '');
+    return this.http.get<{ success: boolean; data?: any }>(
+      `${environment.apiUrl}/v1/search/hashtags/`, { params: { q } }
+    ).pipe(
+      switchMap(res => {
+        const list = res?.data?.results ?? (Array.isArray(res?.data) ? res.data : []);
+        if (list.length > 0) {
+          return of(list.map((h: any) => ({
+            name: h.name || h.tag || h,
+            count: h.posts_count || h.count || 0
+          })));
+        }
+        return of([]);
+      }),
+      catchError(() => {
+        // Fallback: extract hashtags from local posts
+        const tagCounts = new Map<string, number>();
+        for (const post of this.posts()) {
+          const matches = post.caption.match(/#([a-zA-Z0-9_]+)/g) || [];
+          for (const tag of matches) {
+            const name = tag.slice(1);
+            tagCounts.set(name, (tagCounts.get(name) || 0) + 1);
+          }
+        }
+        const results = Array.from(tagCounts.entries())
+          .filter(([name]) => name.toLowerCase().includes(q))
+          .sort((a, b) => b[1] - a[1])
+          .map(([name, count]) => ({ name, count }));
+        return of(results);
       })
     );
   }

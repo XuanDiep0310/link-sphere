@@ -163,8 +163,8 @@ import { Subject, debounceTime, distinctUntilChanged } from 'rxjs';
 
           <!-- Hashtags List Tab -->
           <div *ngIf="activeTab() === 'hashtags'" class="space-y-3">
-            <div 
-              *ngFor="let tag of filteredHashtags()"
+            <div
+              *ngFor="let tag of searchedHashtags()"
               class="bg-white dark:bg-slate-800 p-4 rounded-2xl border border-slate-100 dark:border-slate-700/60 flex items-center justify-between hover:shadow-md transition-shadow cursor-pointer"
             >
               <div class="flex items-center gap-3.5">
@@ -181,7 +181,7 @@ import { Subject, debounceTime, distinctUntilChanged } from 'rxjs';
                 </div>
               </div>
             </div>
-            <div *ngIf="filteredHashtags().length === 0" class="text-center py-10 text-slate-400 dark:text-slate-500 text-sm">
+            <div *ngIf="searchedHashtags().length === 0" class="text-center py-10 text-slate-400 dark:text-slate-500 text-sm">
               No hashtags found matching "{{ searchQuery() }}"
             </div>
           </div>
@@ -201,6 +201,7 @@ export class SearchComponent {
   // API search results
   searchedUsers = signal<User[]>([]);
   searchedPosts = signal<Post[]>([]);
+  searchedHashtags = signal<{ name: string; count: number }[]>([]);
 
   // Track locally which users we've followed in this session
   private followedUsernames = signal<Set<string>>(new Set());
@@ -252,6 +253,7 @@ export class SearchComponent {
     this.searchQuery.set('');
     this.searchedUsers.set([]);
     this.searchedPosts.set([]);
+    this.searchedHashtags.set([]);
     this.isSearching.set(false);
   }
 
@@ -274,27 +276,11 @@ export class SearchComponent {
       this.searchedPosts.set(posts);
       this.isSearching.set(false);
     });
+
+    this.mockData.searchHashtags(query).subscribe(tags => {
+      this.searchedHashtags.set(tags);
+    });
   }
-
-  filteredHashtags = computed(() => {
-    const query = this.searchQuery().trim().toLowerCase().replace(/^#/, '');
-    if (!query) return [];
-
-    // Extract hashtags from post captions and count occurrences
-    const tagCounts = new Map<string, number>();
-    for (const post of this.mockData.allPosts()) {
-      const matches = post.caption.match(/#([a-zA-Z0-9_]+)/g) || [];
-      for (const tag of matches) {
-        const name = tag.slice(1);
-        tagCounts.set(name, (tagCounts.get(name) || 0) + 1);
-      }
-    }
-
-    return Array.from(tagCounts.entries())
-      .filter(([name]) => name.toLowerCase().includes(query))
-      .sort((a, b) => b[1] - a[1])
-      .map(([name, count]) => ({ name, count }));
-  });
 
   isFollowing(username: string): boolean {
     // Check API-returned state first (from search results), then local session state
