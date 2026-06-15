@@ -203,7 +203,7 @@ export class ChatService {
       wsBase = wsBase.replace(/\/notifications\/?$/, '').replace(/\/ws\/.*$/, '');
     }
 
-    const wsUrl = `${wsBase}/ws/chat/?token=${token}`;
+    const wsUrl = `${wsBase}/ws/chat/${conversationId}/?token=${token}`;
 
     this.wsStatus.set('connecting');
 
