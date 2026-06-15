@@ -334,12 +334,12 @@ import { environment } from 'src/environments/environment';
 
           <!-- Comments Section (scrollable) -->
           <div class="flex-1 overflow-y-auto px-4 py-3 space-y-3 min-h-0">
-            <div *ngIf="selectedPost()!.comments.length === 0" class="text-center py-8">
+            <div *ngIf="modalComments().length === 0" class="text-center py-8">
               <p class="text-sm text-slate-400 dark:text-slate-500">No comments yet</p>
               <p class="text-xs text-slate-300 dark:text-slate-600 mt-1">Be the first to comment!</p>
             </div>
 
-            <div *ngFor="let comment of selectedPost()!.comments" class="flex gap-2.5">
+            <div *ngFor="let comment of modalComments()" class="flex gap-2.5">
               <img 
                 [src]="comment.avatarUrl || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150'" 
                 class="w-8 h-8 rounded-full object-cover flex-shrink-0 mt-0.5"
@@ -462,7 +462,8 @@ export class ProfileComponent {
             bio: found.bio
           };
           this.externalUser.set(user);
-          this.isFollowingProfile.set(found.is_following ?? false);
+          const isF = found.is_following;
+          this.isFollowingProfile.set(isF === true || isF === 'true' || isF === 1);
         }
         this.isLoadingProfile.set(false);
       },
@@ -483,7 +484,8 @@ export class ProfileComponent {
                 followingCount: found.following_count || 0,
                 bio: found.bio
               });
-              this.isFollowingProfile.set(found.is_following ?? false);
+              const isF2 = found.is_following;
+              this.isFollowingProfile.set(isF2 === true || isF2 === 'true' || isF2 === 1);
             }
             this.isLoadingProfile.set(false);
           },
@@ -518,6 +520,17 @@ export class ProfileComponent {
   });
 
   isFollowing = computed(() => this.isFollowingProfile());
+
+  // Reads comments from the live userPostsMap (updated by loadComments)
+  modalComments = computed(() => {
+    const selected = this.selectedPost();
+    if (!selected) return [];
+    const fromUser = this.mockData.getUserPosts(this.profileUser().username);
+    const found = fromUser.find(p => p.id === selected.id);
+    if (found && found.comments.length > 0) return found.comments;
+    const fromAll = this.mockData.allPosts().find(p => p.id === selected.id);
+    return fromAll?.comments ?? selected.comments;
+  });
 
   userPosts = computed(() => {
     const user = this.profileUser();

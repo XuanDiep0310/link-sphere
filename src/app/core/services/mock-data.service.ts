@@ -388,19 +388,19 @@ export class SocialService {
             replies: []
           }));
 
-          this.posts.update(currentPosts =>
-            currentPosts.map(p => {
-              if (p.id === postId) {
-                return { ...p, comments: mappedComments };
-              }
-              return p;
-            })
-          );
+          const updatePost = (p: Post) => p.id === postId ? { ...p, comments: mappedComments } : p;
+          this.posts.update(list => list.map(updatePost));
+          this.allPosts.update(list => list.map(updatePost));
+          this.userPostsMap.update(map => {
+            const next = { ...map };
+            for (const uname in next) {
+              next[uname] = next[uname].map(updatePost);
+            }
+            return next;
+          });
         }
       },
-      error: () => {
-        // silent – comments section just stays empty
-      }
+      error: () => {}
     });
   }
 

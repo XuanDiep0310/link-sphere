@@ -266,7 +266,12 @@ export class SearchComponent {
       this.followedUsernames.update(set => {
         const next = new Set(set);
         users.forEach(u => {
-          if ((u as any).is_following) next.add(u.username);
+          const isF = (u as any).is_following;
+          if (isF === true || isF === 'true' || isF === 1) {
+            next.add(u.username);
+          } else {
+            next.delete(u.username);
+          }
         });
         return next;
       });
@@ -283,13 +288,6 @@ export class SearchComponent {
   }
 
   isFollowing(username: string): boolean {
-    // Check API-returned state first (from search results), then local session state
-    const apiUser = this.searchedUsers().find(u => u.username === username);
-    if (apiUser && (apiUser as any).is_following !== undefined) {
-      return !!(apiUser as any).is_following !== this.followedUsernames().has(username)
-        ? this.followedUsernames().has(username)
-        : !!(apiUser as any).is_following;
-    }
     return this.followedUsernames().has(username);
   }
 
