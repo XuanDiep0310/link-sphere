@@ -336,6 +336,11 @@ export class MainLayoutComponent {
     this.mockData.connectNotificationsWs();
     this.chatService.loadConversations();
 
+    const username = this.currentUser()?.username;
+    if (username) {
+      this.mockData.loadBookmarks(username);
+    }
+
     // Init dark mode from localStorage or system preference
     const saved = localStorage.getItem('theme');
     const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
