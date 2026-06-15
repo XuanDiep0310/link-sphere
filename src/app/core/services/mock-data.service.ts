@@ -535,7 +535,7 @@ export class SocialService {
     const action = isFollowing ? 'unfollow' : 'follow';
 
     this.http.post<any>(
-      `${environment.apiUrl}/v1/users/${username}/${action}/`, {}
+      `${environment.apiUrl}/v1/users/${action}/`, { username }
     ).subscribe({
       error: (err) => {
         console.warn(`Failed to ${action} @${username}:`, err);
@@ -562,7 +562,7 @@ export class SocialService {
 
     // Call API
     this.http.post<any>(
-      `${environment.apiUrl}/v1/users/${notification.user.username}/${endpoint}/`, {}
+      `${environment.apiUrl}/v1/users/${endpoint}/`, { username: notification.user.username }
     ).subscribe({
       error: (err) => {
         console.warn(`Failed to ${endpoint} @${notification.user.username}:`, err);

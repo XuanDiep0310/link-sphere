@@ -446,13 +446,14 @@ export class ProfileComponent {
 
   private fetchUserProfile(username: string) {
     this.isLoadingProfile.set(true);
-    this.http.get<{ success: boolean; data?: any }>(
-      `${environment.apiUrl}/v1/users/${username}/`
+    // No dedicated GET /v1/users/{username}/ endpoint — use search API
+    this.http.get<{ success: boolean; data?: { results: any[] } }>(
+      `${environment.apiUrl}/v1/search/users/`, { params: { q: username } }
     ).subscribe({
       next: (res) => {
-        const found = res?.data ?? (res as any);
-        if (found && found.username) {
-          const user: User = {
+        const found = (res?.data?.results || []).find((u: any) => u.username === username);
+        if (found) {
+          this.externalUser.set({
             id: String(found.id),
             email: found.email || '',
             username: found.username,
@@ -460,38 +461,13 @@ export class ProfileComponent {
             followersCount: found.followers_count || 0,
             followingCount: found.following_count || 0,
             bio: found.bio
-          };
-          this.externalUser.set(user);
+          });
           const isF = found.is_following;
           this.isFollowingProfile.set(isF === true || isF === 'true' || isF === 1);
         }
         this.isLoadingProfile.set(false);
       },
-      error: () => {
-        // Fallback: search by username if dedicated endpoint not available
-        this.http.get<{ success: boolean; data?: { results: any[] } }>(
-          `${environment.apiUrl}/v1/search/users/`, { params: { q: username } }
-        ).subscribe({
-          next: (res) => {
-            const found = (res?.data?.results || []).find((u: any) => u.username === username);
-            if (found) {
-              this.externalUser.set({
-                id: String(found.id),
-                email: found.email || '',
-                username: found.username,
-                avatarUrl: found.avatar || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150',
-                followersCount: found.followers_count || 0,
-                followingCount: found.following_count || 0,
-                bio: found.bio
-              });
-              const isF2 = found.is_following;
-              this.isFollowingProfile.set(isF2 === true || isF2 === 'true' || isF2 === 1);
-            }
-            this.isLoadingProfile.set(false);
-          },
-          error: () => this.isLoadingProfile.set(false)
-        });
-      }
+      error: () => this.isLoadingProfile.set(false)
     });
   }
 
