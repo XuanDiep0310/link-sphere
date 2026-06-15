@@ -622,7 +622,8 @@ export class SocialService {
             avatarUrl: u.avatar || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150',
             followersCount: u.followers_count || 0,
             followingCount: u.following_count || 0,
-            bio: u.bio
+            bio: u.bio,
+            is_following: u.is_following === true || u.is_following === 'true'
           }));
           return of(mapped);
         }

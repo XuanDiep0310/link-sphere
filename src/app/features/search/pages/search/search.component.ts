@@ -1,4 +1,4 @@
-import { Component, ChangeDetectionStrategy, inject, signal, computed, effect } from '@angular/core';
+import { Component, ChangeDetectionStrategy, inject, signal, computed } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { MockDataService } from 'src/app/core/services/mock-data.service';
@@ -6,7 +6,7 @@ import { User } from 'src/app/core/models/auth.model';
 import { Post } from 'src/app/core/models/social.model';
 
 import { RouterLink } from '@angular/router';
-import { Subject, debounceTime, distinctUntilChanged, switchMap, of } from 'rxjs';
+import { Subject, debounceTime, distinctUntilChanged } from 'rxjs';
 
 @Component({
   selector: 'app-search',
@@ -260,6 +260,14 @@ export class SearchComponent {
     this.mockData.searchUsers(query).subscribe(users => {
       this.searchedUsers.set(users);
       this.isSearching.set(false);
+      // Seed follow state from API response
+      this.followedUsernames.update(set => {
+        const next = new Set(set);
+        users.forEach(u => {
+          if ((u as any).is_following) next.add(u.username);
+        });
+        return next;
+      });
     });
 
     this.mockData.searchPosts(query).subscribe(posts => {
