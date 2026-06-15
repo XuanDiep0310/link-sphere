@@ -29,6 +29,7 @@ export class ChatService {
   private ws: WebSocket | null = null;
   private currentConversationId: string | null = null;
   private connectTimeoutId: any = null;
+  private tempIdCounter = 0;
 
   // ─── Conversations ─────────────────────────────────────────────────────
 
@@ -235,10 +236,29 @@ export class ChatService {
       this.ws.onmessage = (event) => {
         try {
           const data = JSON.parse(event.data);
-          const message = this.mapMessage(data, conversationId);
-          // Only add if not already in the list
+
+          // Handle nested structure from Django Channels: { type: 'chat_message', message: {...} }
+          const msgData = (data.message && typeof data.message === 'object') ? data.message : data;
+
+          // Skip non-message events (acks, typing indicators, status updates):
+          // a real message must have at least a sender or content
+          if (!msgData.sender && !msgData.sender_username && !msgData.content) return;
+
+          const message = this.mapMessage(msgData, conversationId);
+
+          // Skip if no meaningful content (images use fileUrl)
+          if (!message.content && !message.fileUrl) return;
+
           this.messages.update(current => {
-            if (current.some(m => m.id === message.id)) return current;
+            // Replace matching temp message (negative id) with the real one from server
+            const tempIdx = current.findIndex(m => m.id < 0 && m.content === message.content);
+            if (tempIdx !== -1) {
+              const updated = [...current];
+              updated[tempIdx] = message;
+              return updated;
+            }
+            // Dedup real messages by id
+            if (message.id > 0 && current.some(m => m.id === message.id)) return current;
             return [...current, message];
           });
           // Update conversation's last message
@@ -283,6 +303,29 @@ export class ChatService {
       }
       return;
     }
+
+    // Optimistic: show message immediately, WS echo will replace it
+    this.tempIdCounter++;
+    const me = this.mockData.currentUser();
+    const tempMsg: ChatMessage = {
+      id: -this.tempIdCounter,
+      conversationId: this.currentConversationId || '',
+      sender: { id: Number(me.id) || 0, username: me.username, email: me.email, avatar: me.avatarUrl },
+      content,
+      messageType,
+      fileUrl,
+      createdAt: new Date().toISOString(),
+      updatedAt: '',
+      isDeleted: false
+    };
+    this.messages.update(curr => [...curr, tempMsg]);
+    this.conversations.update(list =>
+      list.map(c => c.id === this.currentConversationId
+        ? { ...c, lastMessage: content, updatedAt: new Date().toISOString() }
+        : c
+      )
+    );
+
     const payload: any = {
       action: 'send_message',
       conversation_id: this.currentConversationId,
@@ -365,11 +408,11 @@ export class ChatService {
       conversationId: conversationId,
       sender: {
         id: m.sender?.id || m.sender_id || 0,
-        username: m.sender?.username || m.username || 'unknown',
+        username: m.sender?.username || m.sender_username || m.username || 'unknown',
         email: m.sender?.email,
         avatar: m.sender?.avatar || m.sender?.avatarUrl
       },
-      content: m.content || m.message || '',
+      content: m.content || m.message || m.body || '',
       messageType: m.message_type || m.messageType || 'text',
       fileUrl: m.file_url || m.fileUrl,
       createdAt: m.created_at || m.createdAt || new Date().toISOString(),

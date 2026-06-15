@@ -1,4 +1,4 @@
-import { Component, ChangeDetectionStrategy, inject, signal, computed, OnInit, OnDestroy, ViewChild, ElementRef, AfterViewChecked } from '@angular/core';
+import { Component, ChangeDetectionStrategy, inject, signal, computed, OnInit, OnDestroy, ViewChild, ElementRef, effect } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
@@ -220,7 +220,7 @@ import { ChatMessage } from 'src/app/core/models/chat.model';
   `,
   changeDetection: ChangeDetectionStrategy.OnPush
 })
-export class ChatRoomComponent implements OnInit, OnDestroy, AfterViewChecked {
+export class ChatRoomComponent implements OnInit, OnDestroy {
   chatService = inject(ChatService);
   private route = inject(ActivatedRoute);
   private router = inject(Router);
@@ -237,7 +237,15 @@ export class ChatRoomComponent implements OnInit, OnDestroy, AfterViewChecked {
   fullImagePreview = signal<string | null>(null);
 
   private shouldScrollToBottom = true;
-  private previousMessageCount = 0;
+
+  constructor() {
+    effect(() => {
+      const msgs = this.chatService.messages();
+      if (msgs.length > 0 && this.shouldScrollToBottom) {
+        Promise.resolve().then(() => this.scrollToBottom());
+      }
+    });
+  }
 
   conversationTitle = computed(() => {
     const conv = this.chatService.conversations().find(c => c.id === this.conversationId);
@@ -280,14 +288,6 @@ export class ChatRoomComponent implements OnInit, OnDestroy, AfterViewChecked {
     this.chatService.connectWebSocket(this.conversationId);
   }
 
-  ngAfterViewChecked() {
-    const currentCount = this.chatService.messages().length;
-    if (currentCount > this.previousMessageCount && this.shouldScrollToBottom) {
-      this.scrollToBottom();
-    }
-    this.previousMessageCount = currentCount;
-  }
-
   ngOnDestroy() {
     this.chatService.disconnectWebSocket();
   }
@@ -300,7 +300,7 @@ export class ChatRoomComponent implements OnInit, OnDestroy, AfterViewChecked {
   }
 
   trackByMessageId(index: number, msg: ChatMessage): number {
-    return msg.id;
+    return msg.id ?? index;
   }
 
   onScroll(event: Event) {
