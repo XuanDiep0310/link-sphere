@@ -1,4 +1,4 @@
-import { Component, ChangeDetectionStrategy, inject, signal } from '@angular/core';
+import { Component, ChangeDetectionStrategy, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { MockDataService } from 'src/app/core/services/mock-data.service';
 import { Notification } from 'src/app/core/models/social.model';
@@ -104,7 +104,7 @@ export class NotificationsComponent {
     setTimeout(() => this.mockData.markNotificationsRead(), 2000);
   }
 
-  trackByNotificationId(index: number, notification: Notification): string {
+  trackByNotificationId(_index: number, notification: Notification): string {
     return notification.id;
   }
 
@@ -114,11 +114,8 @@ export class NotificationsComponent {
 
   viewPost(notification: Notification) {
     if (notification.postId) {
-      // TODO: navigate to specific post when post detail route is available
-      // this.router.navigate(['/posts', notification.postId]);
-      this.router.navigate(['/profile', notification.user.username]);
+      this.router.navigate(['/posts', notification.postId]);
     } else {
-      // Fallback: go to the sender's profile
       this.router.navigate(['/profile', notification.user.username]);
     }
   }

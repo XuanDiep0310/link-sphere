@@ -4,7 +4,7 @@ import { User } from '../models/auth.model';
 import { Post, Comment, Notification, ExploreItem } from '../models/social.model';
 import { environment } from '../../../environments/environment';
 import { AuthService } from './auth.service';
-import { tap, Observable, of, switchMap, catchError } from 'rxjs';
+import { tap, Observable, of, switchMap, catchError, map } from 'rxjs';
 
 @Injectable({
   providedIn: 'root'
@@ -797,6 +797,12 @@ export class SocialService {
     return this.userPostsMap().hasOwnProperty(username)
       ? this.userPostsMap()[username]
       : this.allPosts().filter(p => p.user.username === username);
+  }
+
+  getPostById(id: string): Observable<Post> {
+    return this.http.get<{ success: boolean; data?: any }>(`${environment.apiUrl}/v1/posts/${id}/`).pipe(
+      map((res: { success: boolean; data?: any }) => this.mapPostFromApi(res?.data ?? res))
+    );
   }
 
   // ─── UPDATE PROFILE (MOCK — TODO: PATCH /v1/users/profile/) ──────────────
