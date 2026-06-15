@@ -465,12 +465,7 @@ export class ProfileComponent {
           const isF = found.is_following;
           const following = isF === true || isF === 'true' || isF === 1;
           this.isFollowingProfile.set(following);
-          // Sync to global follow state
-          this.mockData.followedUsernames.update(set => {
-            const next = new Set(set);
-            following ? next.add(found.username) : next.delete(found.username);
-            return next;
-          });
+          this.mockData.seedFollowState(found.username, following);
         }
         this.isLoadingProfile.set(false);
       },

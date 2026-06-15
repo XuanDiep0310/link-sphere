@@ -85,8 +85,30 @@ export class SocialService {
   toastMessage = signal<string | null>(null);
   toastType = signal<'success' | 'warning' | 'error'>('success');
 
-  // ─── GLOBAL FOLLOW STATE ─────────────────────────────────────────────────
-  followedUsernames = signal<Set<string>>(new Set());
+  // ─── GLOBAL FOLLOW STATE (persisted to localStorage) ────────────────────
+  followedUsernames = signal<Set<string>>(this.loadFollowedFromStorage());
+
+  private loadFollowedFromStorage(): Set<string> {
+    try {
+      const raw = localStorage.getItem('followed_usernames');
+      return raw ? new Set<string>(JSON.parse(raw)) : new Set<string>();
+    } catch {
+      return new Set<string>();
+    }
+  }
+
+  private saveFollowedToStorage(set: Set<string>) {
+    localStorage.setItem('followed_usernames', JSON.stringify(Array.from(set)));
+  }
+
+  seedFollowState(username: string, isFollowing: boolean) {
+    this.followedUsernames.update(set => {
+      const next = new Set(set);
+      isFollowing ? next.add(username) : next.delete(username);
+      this.saveFollowedToStorage(next);
+      return next;
+    });
+  }
 
   showToast(message: string, type: 'success' | 'warning' | 'error' = 'success') {
     this.toastType.set(type);
@@ -536,10 +558,11 @@ export class SocialService {
     const isFollowing = currentlyFollowing ?? this.followedUsernames().has(username);
     const action = isFollowing ? 'unfollow' : 'follow';
 
-    // Optimistic update global follow state
+    // Optimistic update global follow state + persist
     this.followedUsernames.update(set => {
       const next = new Set(set);
       isFollowing ? next.delete(username) : next.add(username);
+      this.saveFollowedToStorage(next);
       return next;
     });
 
@@ -548,10 +571,11 @@ export class SocialService {
     ).subscribe({
       error: (err) => {
         console.warn(`Failed to ${action} @${username}:`, err);
-        // Revert on error
+        // Revert on error + persist revert
         this.followedUsernames.update(set => {
           const next = new Set(set);
           isFollowing ? next.add(username) : next.delete(username);
+          this.saveFollowedToStorage(next);
           return next;
         });
       }
@@ -613,13 +637,14 @@ export class SocialService {
             bio: u.bio,
             is_following: u.is_following === true || u.is_following === 'true' || u.is_following === 1
           }));
-          // Seed global follow state from API
+          // Seed global follow state from API + persist
           this.followedUsernames.update(set => {
             const next = new Set(set);
             mapped.forEach((u: any) => {
               if (u.is_following) next.add(u.username);
               else next.delete(u.username);
             });
+            this.saveFollowedToStorage(next);
             return next;
           });
           return of(mapped);
