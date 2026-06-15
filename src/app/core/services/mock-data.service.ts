@@ -4,7 +4,7 @@ import { User } from '../models/auth.model';
 import { Post, Comment, Notification, ExploreItem } from '../models/social.model';
 import { environment } from '../../../environments/environment';
 import { AuthService } from './auth.service';
-import { tap, Observable, of, switchMap, catchError, map } from 'rxjs';
+import { tap, Observable, of, switchMap, catchError } from 'rxjs';
 
 @Injectable({
   providedIn: 'root'
@@ -614,23 +614,10 @@ export class SocialService {
   searchHashtags(query: string): Observable<{ name: string; count: number }[]> {
     if (!query.trim()) return of([]);
     const q = query.trim().toLowerCase().replace(/^#/, '');
-    return this.http.get<{ success: boolean; data?: any }>(
-      `${environment.apiUrl}/v1/search/hashtags/`, { params: { q } }
-    ).pipe(
-      switchMap(res => {
-        const list = res?.data?.results ?? (Array.isArray(res?.data) ? res.data : []);
-        if (list.length > 0) {
-          return of(list.map((h: any) => ({
-            name: h.name || h.tag || h,
-            count: h.posts_count || h.count || 0
-          })));
-        }
-        return of([]);
-      }),
-      catchError(() => {
-        // Fallback: extract hashtags from local posts
+    // No /v1/search/hashtags/ endpoint in API — extract from loaded posts
+    {
         const tagCounts = new Map<string, number>();
-        for (const post of this.posts()) {
+        for (const post of [...this.posts(), ...this.allPosts()]) {
           const matches = post.caption.match(/#([a-zA-Z0-9_]+)/g) || [];
           for (const tag of matches) {
             const name = tag.slice(1);
@@ -642,8 +629,7 @@ export class SocialService {
           .sort((a, b) => b[1] - a[1])
           .map(([name, count]) => ({ name, count }));
         return of(results);
-      })
-    );
+    }
   }
 
   searchPosts(query: string): Observable<Post[]> {
@@ -773,9 +759,20 @@ export class SocialService {
   }
 
   getPostById(id: string): Observable<Post> {
-    return this.http.get<{ success: boolean; data?: any }>(`${environment.apiUrl}/v1/posts/${id}/`).pipe(
-      map((res: { success: boolean; data?: any }) => this.mapPostFromApi(res?.data ?? res))
-    );
+    // No GET /v1/posts/{id}/ in API — search loaded state
+    const fromAll = this.allPosts().find(p => p.id === id)
+                 ?? this.posts().find(p => p.id === id);
+    if (fromAll) return of(fromAll);
+
+    // Fallback: search through userPostsMap
+    for (const username in this.userPostsMap()) {
+      const found = this.userPostsMap()[username].find(p => p.id === id);
+      if (found) return of(found);
+    }
+
+    return new Observable(observer => {
+      observer.error(new Error('Post not found'));
+    });
   }
 
   // ─── UPDATE PROFILE (MOCK — TODO: PATCH /v1/users/profile/) ──────────────
