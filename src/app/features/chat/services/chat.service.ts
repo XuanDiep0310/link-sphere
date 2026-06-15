@@ -202,7 +202,7 @@ export class ChatService {
       wsBase = wsBase.replace(/\/notifications\/?$/, '').replace(/\/ws\/.*$/, '');
     }
 
-    const wsUrl = `${wsBase}/ws/chat/${conversationId}/?token=${token}&access_token=${token}`;
+    const wsUrl = `${wsBase}/ws/chat/?token=${token}`;
 
     this.wsStatus.set('connecting');
 
@@ -284,12 +284,12 @@ export class ChatService {
       return;
     }
     const payload: any = {
+      action: 'send_message',
+      conversation_id: this.currentConversationId,
       content,
-      message_type: messageType
+      message_type: messageType,
+      file_url: fileUrl ?? null
     };
-    if (fileUrl) {
-      payload.file_url = fileUrl;
-    }
     this.ws.send(JSON.stringify(payload));
   }
 
