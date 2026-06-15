@@ -43,8 +43,7 @@ export class SocialService {
     this.notifications().filter(n => !n.isRead).length
   );
 
-  // Bookmark State — persisted to localStorage
-  // TODO: replace with real API when POST /v1/posts/{id}/bookmark/ is available
+  // Bookmark State — synced from API, localStorage as cache
   private bookmarkedIds = signal<Set<string>>(this.loadBookmarksFromStorage());
 
   bookmarkedPosts = computed(() =>
@@ -62,6 +61,24 @@ export class SocialService {
 
   private saveBookmarksToStorage(ids: Set<string>) {
     localStorage.setItem('bookmarked_post_ids', JSON.stringify(Array.from(ids)));
+  }
+
+  loadBookmarks(username: string) {
+    this.http.get<{ success: boolean; data?: any[] }>(
+      `${environment.apiUrl}/v1/users/${username}/bookmarks/`
+    ).subscribe({
+      next: (res) => {
+        const list = res?.data ?? [];
+        const ids = new Set<string>(list.map((p: any) => String(p.id)));
+        this.bookmarkedIds.set(ids);
+        this.saveBookmarksToStorage(ids);
+        // Update hasBookmarked flag on already-loaded posts
+        const sync = (p: Post) => ({ ...p, hasBookmarked: ids.has(p.id) });
+        this.posts.update(list => list.map(sync));
+        this.allPosts.update(list => list.map(sync));
+      },
+      error: () => { /* keep localStorage cache */ }
+    });
   }
 
   // Toast notification
@@ -259,15 +276,20 @@ export class SocialService {
   }
 
   deletePost(postId: string): void {
-    // Optimistic remove from UI
+    const snapshot = { posts: this.posts(), allPosts: this.allPosts() };
+
+    // Optimistic remove
     this.posts.update(current => current.filter(p => p.id !== postId));
     this.allPosts.update(current => current.filter(p => p.id !== postId));
 
-    // TODO: replace with real API call when DELETE /v1/posts/{post_id}/ is available
-    // this.http.delete<any>(`${environment.apiUrl}/v1/posts/${postId}/`).subscribe({
-    //   error: () => { this.loadFeed(); this.showToast('Failed to delete post.'); }
-    // });
-    this.showToast('Post deleted successfully.');
+    this.http.delete<any>(`${environment.apiUrl}/v1/posts/${postId}/`).subscribe({
+      next: () => this.showToast('Post deleted successfully.'),
+      error: () => {
+        this.posts.set(snapshot.posts);
+        this.allPosts.set(snapshot.allPosts);
+        this.showToast('Failed to delete post. Please try again.', 'error');
+      }
+    });
   }
 
   // ─── LIKE/UNLIKE (API INTEGRATED) ──────────────────────────────────────
@@ -321,7 +343,6 @@ export class SocialService {
   }
 
   toggleBookmark(postId: string) {
-    // TODO: replace with real API when POST /v1/posts/{id}/bookmark/ is available
     const next = new Set(this.bookmarkedIds());
     const isNowBookmarked = !next.has(postId);
     isNowBookmarked ? next.add(postId) : next.delete(postId);
@@ -332,6 +353,20 @@ export class SocialService {
       p.id === postId ? { ...p, hasBookmarked: isNowBookmarked } : p;
     this.posts.update(list => list.map(update));
     this.allPosts.update(list => list.map(update));
+
+    this.http.post<any>(`${environment.apiUrl}/v1/posts/${postId}/bookmark/`, {}).subscribe({
+      error: () => {
+        // Revert on error
+        const prev = new Set(this.bookmarkedIds());
+        isNowBookmarked ? prev.delete(postId) : prev.add(postId);
+        this.bookmarkedIds.set(prev);
+        this.saveBookmarksToStorage(prev);
+        const revert = (p: Post) =>
+          p.id === postId ? { ...p, hasBookmarked: !isNowBookmarked } : p;
+        this.posts.update(list => list.map(revert));
+        this.allPosts.update(list => list.map(revert));
+      }
+    });
 
     this.showToast(isNowBookmarked ? 'Post saved to bookmarks.' : 'Removed from bookmarks.');
   }
@@ -363,7 +398,7 @@ export class SocialService {
           );
         }
       },
-      error: (err) => {
+      error: () => {
         // silent – comments section just stays empty
       }
     });
@@ -403,7 +438,7 @@ export class SocialService {
         // Reload comments from backend to get real IDs
         this.loadComments(postId);
       },
-      error: (err) => {
+      error: () => {
         this.showToast('Failed to post comment. Please try again.');
       }
     });
@@ -688,7 +723,7 @@ export class SocialService {
       caption: item.content || '',
       likes: item.likes_count || 0,
       hasLiked: item.is_liked === 'true' || item.is_liked === true || String(item.is_liked).toLowerCase() === 'true',
-      hasBookmarked: this.bookmarkedIds().has(String(item.id)),
+      hasBookmarked: item.is_bookmarked === true || item.is_bookmarked === 'true' || this.bookmarkedIds().has(String(item.id)),
       comments: [],
       commentsCount: item.comments_count || 0,
       createdAt: this.formatTimeAgo(item.created_at)
@@ -702,11 +737,24 @@ export class SocialService {
 
   loadUserPosts(username: string): void {
     this.isLoadingUserPosts.set(true);
-    // TODO: replace with real API when GET /v1/users/{username}/posts/ is ready
-    // this.http.get<any>(`${environment.apiUrl}/v1/users/${username}/posts/`).subscribe({ ... })
-    const fromAll = this.allPosts().filter(p => p.user.username === username);
-    this.userPostsMap.update(m => ({ ...m, [username]: fromAll }));
-    this.isLoadingUserPosts.set(false);
+    this.http.get<{ success: boolean; data?: any }>(
+      `${environment.apiUrl}/v1/users/${username}/posts/`
+    ).subscribe({
+      next: (res) => {
+        const rawList = res?.data
+          ? (Array.isArray(res.data) ? res.data : (res.data.results || []))
+          : [];
+        const mapped = rawList.map((item: any) => this.mapPostFromApi(item));
+        this.userPostsMap.update(m => ({ ...m, [username]: mapped }));
+        this.isLoadingUserPosts.set(false);
+      },
+      error: () => {
+        // Fallback: filter from already-loaded posts
+        const fromAll = this.allPosts().filter(p => p.user.username === username);
+        this.userPostsMap.update(m => ({ ...m, [username]: fromAll }));
+        this.isLoadingUserPosts.set(false);
+      }
+    });
   }
 
   getUserPosts(username: string) {
@@ -718,17 +766,30 @@ export class SocialService {
   // ─── UPDATE PROFILE (MOCK — TODO: PATCH /v1/users/profile/) ──────────────
 
   updateProfile(bio: string, avatarUrl: string): void {
-    // TODO: replace with real API when PATCH /v1/users/profile/ is ready
-    // const formData = new FormData();
-    // formData.append('bio', bio);
-    // if (avatarFile) formData.append('avatar', avatarFile);
-    // this.http.patch<any>(`${environment.apiUrl}/v1/users/profile/`, formData).subscribe(...)
-
-    // Mock: update local state + localStorage immediately
+    // Optimistic local update
     this.authService.updateCurrentUser({ bio, avatarUrl });
     localStorage.setItem('logged_in_bio', bio);
     if (avatarUrl) localStorage.setItem('logged_in_avatar', avatarUrl);
-    this.showToast('Profile updated successfully!');
+
+    const body: any = { bio };
+    if (avatarUrl) body.avatar = avatarUrl;
+
+    this.http.patch<{ success: boolean; data?: any }>(
+      `${environment.apiUrl}/v1/users/profile/`, body
+    ).subscribe({
+      next: (res) => {
+        if (res?.data) {
+          const d = res.data;
+          const updatedBio = d.bio ?? bio;
+          const updatedAvatar = d.avatar ?? avatarUrl;
+          this.authService.updateCurrentUser({ bio: updatedBio, avatarUrl: updatedAvatar });
+          localStorage.setItem('logged_in_bio', updatedBio);
+          if (updatedAvatar) localStorage.setItem('logged_in_avatar', updatedAvatar);
+        }
+        this.showToast('Profile updated successfully!');
+      },
+      error: () => this.showToast('Failed to update profile. Please try again.', 'error')
+    });
   }
 
   formatTimeAgo(dateStr: string): string {
