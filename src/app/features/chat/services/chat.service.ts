@@ -203,7 +203,7 @@ export class ChatService {
       wsBase = wsBase.replace(/\/notifications\/?$/, '').replace(/\/ws\/.*$/, '');
     }
 
-    const wsUrl = `${wsBase}/ws/chat/${conversationId}/?token=${token}`;
+    const wsUrl = `${wsBase}/ws/chat/?token=${token}`;
 
     this.wsStatus.set('connecting');
 
@@ -231,6 +231,10 @@ export class ChatService {
         if (this.connectTimeoutId) clearTimeout(this.connectTimeoutId);
         this.isConnected.set(true);
         this.wsStatus.set('connected');
+        // Ask backend to subscribe us to this conversation's channel group
+        if (this.ws && conversationId) {
+          this.ws.send(JSON.stringify({ action: 'join', conversation_id: conversationId }));
+        }
       };
 
       this.ws.onmessage = (event) => {
