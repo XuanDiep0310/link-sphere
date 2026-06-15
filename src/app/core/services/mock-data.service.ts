@@ -85,6 +85,9 @@ export class SocialService {
   toastMessage = signal<string | null>(null);
   toastType = signal<'success' | 'warning' | 'error'>('success');
 
+  // ─── GLOBAL FOLLOW STATE ─────────────────────────────────────────────────
+  followedUsernames = signal<Set<string>>(new Set());
+
   showToast(message: string, type: 'success' | 'warning' | 'error' = 'success') {
     this.toastType.set(type);
     this.toastMessage.set(message);
@@ -530,15 +533,27 @@ export class SocialService {
   }
 
   toggleFollowByUsername(username: string, currentlyFollowing?: boolean) {
-    const user = this.mockUsers().find(u => u.username === username);
-    const isFollowing = currentlyFollowing ?? !!(user as any)?._isFollowing;
+    const isFollowing = currentlyFollowing ?? this.followedUsernames().has(username);
     const action = isFollowing ? 'unfollow' : 'follow';
+
+    // Optimistic update global follow state
+    this.followedUsernames.update(set => {
+      const next = new Set(set);
+      isFollowing ? next.delete(username) : next.add(username);
+      return next;
+    });
 
     this.http.post<any>(
       `${environment.apiUrl}/v1/users/${action}/`, { username }
     ).subscribe({
       error: (err) => {
         console.warn(`Failed to ${action} @${username}:`, err);
+        // Revert on error
+        this.followedUsernames.update(set => {
+          const next = new Set(set);
+          isFollowing ? next.add(username) : next.delete(username);
+          return next;
+        });
       }
     });
   }
@@ -596,8 +611,17 @@ export class SocialService {
             followersCount: u.followers_count || 0,
             followingCount: u.following_count || 0,
             bio: u.bio,
-            is_following: u.is_following === true || u.is_following === 'true'
+            is_following: u.is_following === true || u.is_following === 'true' || u.is_following === 1
           }));
+          // Seed global follow state from API
+          this.followedUsernames.update(set => {
+            const next = new Set(set);
+            mapped.forEach((u: any) => {
+              if (u.is_following) next.add(u.username);
+              else next.delete(u.username);
+            });
+            return next;
+          });
           return of(mapped);
         }
         return of([]);

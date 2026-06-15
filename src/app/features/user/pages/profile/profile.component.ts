@@ -463,7 +463,14 @@ export class ProfileComponent {
             bio: found.bio
           });
           const isF = found.is_following;
-          this.isFollowingProfile.set(isF === true || isF === 'true' || isF === 1);
+          const following = isF === true || isF === 'true' || isF === 1;
+          this.isFollowingProfile.set(following);
+          // Sync to global follow state
+          this.mockData.followedUsernames.update(set => {
+            const next = new Set(set);
+            following ? next.add(found.username) : next.delete(found.username);
+            return next;
+          });
         }
         this.isLoadingProfile.set(false);
       },
@@ -495,7 +502,9 @@ export class ProfileComponent {
     };
   });
 
-  isFollowing = computed(() => this.isFollowingProfile());
+  isFollowing = computed(() =>
+    this.isFollowingProfile() || this.mockData.followedUsernames().has(this.profileUser().username)
+  );
 
   // Reads comments from the live userPostsMap (updated by loadComments)
   modalComments = computed(() => {

@@ -203,8 +203,8 @@ export class SearchComponent {
   searchedPosts = signal<Post[]>([]);
   searchedHashtags = signal<{ name: string; count: number }[]>([]);
 
-  // Track locally which users we've followed in this session
-  private followedUsernames = signal<Set<string>>(new Set());
+  // Use centralized follow state from service
+  private get followedUsernames() { return this.mockData.followedUsernames; }
 
   // Debounce subject
   private searchSubject = new Subject<string>();
@@ -262,19 +262,7 @@ export class SearchComponent {
     this.mockData.searchUsers(query).subscribe(users => {
       this.searchedUsers.set(users);
       this.isSearching.set(false);
-      // Seed follow state from API response
-      this.followedUsernames.update(set => {
-        const next = new Set(set);
-        users.forEach(u => {
-          const isF = (u as any).is_following;
-          if (isF === true || isF === 'true' || isF === 1) {
-            next.add(u.username);
-          } else {
-            next.delete(u.username);
-          }
-        });
-        return next;
-      });
+      // follow state seeded centrally in MockDataService.searchUsers()
     });
 
     this.mockData.searchPosts(query).subscribe(posts => {
