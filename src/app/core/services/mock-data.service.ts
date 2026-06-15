@@ -529,44 +529,16 @@ export class SocialService {
     this.toggleFollowByUsername(user.username);
   }
 
-  toggleFollowByUsername(username: string) {
+  toggleFollowByUsername(username: string, currentlyFollowing?: boolean) {
     const user = this.mockUsers().find(u => u.username === username);
-    const isFollowing = !!(user as any)?._isFollowing;
-    const endpoint = isFollowing ? 'unfollow' : 'follow';
+    const isFollowing = currentlyFollowing ?? !!(user as any)?._isFollowing;
+    const action = isFollowing ? 'unfollow' : 'follow';
 
-    // Optimistic update
-    this.mockUsers.update(users =>
-      users.map(u => {
-        if (u.username === username) {
-          const updatedFollowing = !isFollowing;
-          return {
-            ...u,
-            _isFollowing: updatedFollowing,
-            followersCount: updatedFollowing ? (u.followersCount || 0) + 1 : (u.followersCount || 0) - 1
-          } as any;
-        }
-        return u;
-      })
-    );
-
-    // Call API
-    this.http.post<any>(`${environment.apiUrl}/v1/users/${endpoint}/`, {
-      username: username
-    }).subscribe({
-      error: () => {
-        // Revert on error
-        this.mockUsers.update(users =>
-          users.map(u => {
-            if (u.username === username) {
-              return {
-                ...u,
-                _isFollowing: isFollowing,
-                followersCount: isFollowing ? (u.followersCount || 0) + 1 : (u.followersCount || 0) - 1
-              } as any;
-            }
-            return u;
-          })
-        );
+    this.http.post<any>(
+      `${environment.apiUrl}/v1/users/${username}/${action}/`, {}
+    ).subscribe({
+      error: (err) => {
+        console.warn(`Failed to ${action} @${username}:`, err);
       }
     });
   }
@@ -589,10 +561,11 @@ export class SocialService {
     );
 
     // Call API
-    this.http.post<any>(`${environment.apiUrl}/v1/users/${endpoint}/`, {
-      username: notification.user.username
-    }).subscribe({
-      error: () => {
+    this.http.post<any>(
+      `${environment.apiUrl}/v1/users/${notification.user.username}/${endpoint}/`, {}
+    ).subscribe({
+      error: (err) => {
+        console.warn(`Failed to ${endpoint} @${notification.user.username}:`, err);
         // Revert
         this.notifications.update(notifications =>
           notifications.map(n => {

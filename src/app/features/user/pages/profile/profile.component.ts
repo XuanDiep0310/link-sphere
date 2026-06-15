@@ -541,7 +541,8 @@ export class ProfileComponent {
 
   toggleFollowUser() {
     const username = this.profileUser().username;
-    const nowFollowing = !this.isFollowingProfile();
+    const wasFollowing = this.isFollowingProfile();
+    const nowFollowing = !wasFollowing;
     this.isFollowingProfile.set(nowFollowing);
 
     // Update follower count optimistically
@@ -555,7 +556,7 @@ export class ProfileComponent {
       });
     }
 
-    this.mockData.toggleFollowByUsername(username);
+    this.mockData.toggleFollowByUsername(username, wasFollowing);
   }
 
   onLogout() {

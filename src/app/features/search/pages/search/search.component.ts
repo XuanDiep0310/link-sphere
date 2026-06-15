@@ -298,6 +298,6 @@ export class SearchComponent {
       currently ? next.delete(username) : next.add(username);
       return next;
     });
-    this.mockData.toggleFollowByUsername(username);
+    this.mockData.toggleFollowByUsername(username, currently);
   }
 }
