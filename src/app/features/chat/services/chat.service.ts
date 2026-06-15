@@ -30,6 +30,7 @@ export class ChatService {
   private currentConversationId: string | null = null;
   private connectTimeoutId: any = null;
   private tempIdCounter = 0;
+  private pollingInterval: any = null;
 
   // ─── Conversations ─────────────────────────────────────────────────────
 
@@ -297,6 +298,9 @@ export class ChatService {
       this.isConnected.set(false);
       this.wsStatus.set('disconnected');
     }
+
+    // Poll every 5s as fallback in case WS doesn't broadcast to receiver
+    this.startPolling(conversationId);
   }
 
   sendMessage(content: string, messageType: 'text' | 'image' = 'text', fileUrl?: string) {
@@ -349,9 +353,46 @@ export class ChatService {
       this.ws.close();
       this.ws = null;
     }
+    if (this.pollingInterval) {
+      clearInterval(this.pollingInterval);
+      this.pollingInterval = null;
+    }
     this.isConnected.set(false);
     this.wsStatus.set('disconnected');
     this.currentConversationId = null;
+  }
+
+  private startPolling(conversationId: string) {
+    if (this.pollingInterval) clearInterval(this.pollingInterval);
+    this.pollingInterval = setInterval(() => this.pollNewMessages(conversationId), 5000);
+  }
+
+  private pollNewMessages(conversationId: string) {
+    this.http.get<any>(`${environment.apiUrl}/v1/chat/conversations/${conversationId}/messages/`).subscribe({
+      next: (res) => {
+        let results: any[] = [];
+        if (Array.isArray(res)) results = res;
+        else if (res?.success && res?.data) results = Array.isArray(res.data) ? res.data : (res.data.results || []);
+        else if (Array.isArray(res?.results)) results = res.results;
+
+        const currentIds = new Set(this.messages().filter(m => m.id > 0).map(m => m.id));
+        const newMsgs = results
+          .map((m: any) => this.mapMessage(m, conversationId))
+          .filter(m => m.id > 0 && !currentIds.has(m.id));
+
+        if (newMsgs.length > 0) {
+          this.messages.update(curr => {
+            // Remove temp messages that match incoming real messages
+            const withoutMatchingTemps = curr.filter(m =>
+              m.id >= 0 || !newMsgs.some(nm => nm.content === m.content)
+            );
+            // API returns newest-first, reverse to show oldest-first
+            return [...withoutMatchingTemps, ...newMsgs.reverse()];
+          });
+        }
+      },
+      error: () => {}
+    });
   }
 
   // ─── User Search (for new conversation) ────────────────────────────────
