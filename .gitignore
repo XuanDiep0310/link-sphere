@@ -45,3 +45,6 @@ Thumbs.db
 .env*.local
 .env
 /src/environments/environment.ts
+
+# Backend source (kept locally for reference only — do NOT push)
+/link-sphere-ins

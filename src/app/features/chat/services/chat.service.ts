@@ -232,35 +232,49 @@ export class ChatService {
         if (this.connectTimeoutId) clearTimeout(this.connectTimeoutId);
         this.isConnected.set(true);
         this.wsStatus.set('connected');
-        // Ask backend to subscribe us to this conversation's channel group
-        if (this.ws && conversationId) {
-          this.ws.send(JSON.stringify({ action: 'join', conversation_id: conversationId }));
-        }
+        // Backend auto-subscribes each user to their personal group `user_{id}`
+        // on connect, so no extra join action is needed here.
       };
 
       this.ws.onmessage = (event) => {
         try {
           const data = JSON.parse(event.data);
 
-          // Handle nested structure from Django Channels: { type: 'chat_message', message: {...} }
-          const msgData = (data.message && typeof data.message === 'object') ? data.message : data;
+          // Backend error envelope: { error: "..." }
+          if (data.error) {
+            console.warn('Chat WS error:', data.error);
+            return;
+          }
 
-          // Skip non-message events (acks, typing indicators, status updates):
-          // a real message must have at least a sender or content
-          if (!msgData.sender && !msgData.sender_username && !msgData.content) return;
+          // Backend broadcast envelope: { event, data: {...} }
+          // Events: 'message_received' | 'typing' | 'messages_read'
+          // Only handle new messages here; ignore typing / read receipts.
+          if (data.event && data.event !== 'message_received') return;
 
-          // The WS broadcast format may differ from the HTTP API. Rather than
-          // risk mis-mapping it, use the WS event purely as a "something changed"
-          // trigger and fetch the authoritative, correctly-mapped data over HTTP.
-          this.pollNewMessages(conversationId);
+          // The actual message lives under `data.data` (Django Channels payload)
+          const msgData = data.data || data.message || data;
 
-          const message = this.mapMessage(msgData, conversationId);
+          // Must contain an actual message
+          if (!msgData.content && !msgData.file_url && !msgData.sender) return;
 
-          // Skip if no meaningful content (images use fileUrl)
+          const incomingConvId = String(msgData.conversation_id || conversationId);
+          const message = this.mapMessage(msgData, incomingConvId);
+
+          // Always refresh the conversation list preview
+          this.conversations.update(list =>
+            list.map(c =>
+              c.id === incomingConvId
+                ? { ...c, lastMessage: message.content, updatedAt: message.createdAt }
+                : c
+            )
+          );
+
+          // Only append to the open thread if it belongs to this conversation
+          if (incomingConvId !== conversationId) return;
           if (!message.content && !message.fileUrl) return;
 
           this.messages.update(current => {
-            // Replace matching temp message (negative id) with the real one from server
+            // Replace our own optimistic temp message (negative id) by matching content
             const tempIdx = current.findIndex(m => m.id < 0 && m.content === message.content);
             if (tempIdx !== -1) {
               const updated = [...current];
@@ -271,14 +285,6 @@ export class ChatService {
             if (message.id > 0 && current.some(m => m.id === message.id)) return current;
             return [...current, message];
           });
-          // Update conversation's last message
-          this.conversations.update(list =>
-            list.map(c =>
-              c.id === conversationId
-                ? { ...c, lastMessage: message.content, updatedAt: message.createdAt }
-                : c
-            )
-          );
         } catch (e) {
           console.warn('Failed to parse WebSocket message:', e);
         }
