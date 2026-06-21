@@ -49,6 +49,23 @@ export class RegisterComponent {
           });
         },
         error: (err) => {
+          // A 500 from register means the account was actually created in the DB
+          // but a backend side-effect (welcome-email background task) failed.
+          // The account exists, so just try to log in with the same credentials.
+          if (err?.status === 500) {
+            this.authService.login({
+              username: val.username,
+              password: val.password
+            }).subscribe({
+              next: () => { this.isLoading.set(false); },
+              error: () => {
+                this.isLoading.set(false);
+                this.errorMessage.set('Account may already exist. Please try logging in.');
+              }
+            });
+            return;
+          }
+
           this.isLoading.set(false);
           const data = err?.error;
           const msg = data?.message || data?.detail ||
