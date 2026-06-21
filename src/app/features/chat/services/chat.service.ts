@@ -249,6 +249,11 @@ export class ChatService {
           // a real message must have at least a sender or content
           if (!msgData.sender && !msgData.sender_username && !msgData.content) return;
 
+          // The WS broadcast format may differ from the HTTP API. Rather than
+          // risk mis-mapping it, use the WS event purely as a "something changed"
+          // trigger and fetch the authoritative, correctly-mapped data over HTTP.
+          this.pollNewMessages(conversationId);
+
           const message = this.mapMessage(msgData, conversationId);
 
           // Skip if no meaningful content (images use fileUrl)
