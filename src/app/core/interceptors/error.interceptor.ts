@@ -3,6 +3,7 @@ import { catchError, throwError, switchMap, Observable, shareReplay, finalize, m
 import { inject } from '@angular/core';
 import { Router } from '@angular/router';
 import { environment } from '../../../environments/environment';
+import { AuthService } from '../services/auth.service';
 
 // Single-flight refresh: when many requests 401 at the same time, they must
 // share ONE refresh call instead of each firing their own (which storms the
@@ -21,6 +22,7 @@ function clearSession() {
 export const errorInterceptor: HttpInterceptorFn = (req, next) => {
   const router = inject(Router);
   const httpBackend = inject(HttpBackend);
+  const authService = inject(AuthService);
 
   return next(req).pipe(
     catchError((error: HttpErrorResponse) => {
@@ -34,8 +36,7 @@ export const errorInterceptor: HttpInterceptorFn = (req, next) => {
       const refresh = localStorage.getItem('refresh_token');
       if (!refresh) {
         // No way to recover — clean up and bounce to login
-        clearSession();
-        router.navigate(['/auth/login']);
+        authService.logout();
         return throwError(() => error);
       }
 
@@ -53,8 +54,7 @@ export const errorInterceptor: HttpInterceptorFn = (req, next) => {
           }),
           catchError(refreshErr => {
             // Refresh failed for everyone — clear session and redirect once
-            clearSession();
-            router.navigate(['/auth/login']);
+            authService.logout();
             return throwError(() => refreshErr);
           }),
           // Reset so the next 401 (after this batch) can refresh again

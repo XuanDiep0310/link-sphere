@@ -282,11 +282,6 @@ export class SearchComponent {
 
   toggleFollow(username: string) {
     const currently = this.isFollowing(username);
-    this.followedUsernames.update(set => {
-      const next = new Set(set);
-      currently ? next.delete(username) : next.add(username);
-      return next;
-    });
     this.mockData.toggleFollowByUsername(username, currently);
   }
 }
