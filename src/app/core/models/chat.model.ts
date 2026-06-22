@@ -6,6 +6,7 @@ export interface Conversation {
   lastMessage: string;
   unreadCount: number;
   otherParticipant: string;
+  otherParticipantId?: number;
   updatedAt: string;
   createdAt: string;
 }

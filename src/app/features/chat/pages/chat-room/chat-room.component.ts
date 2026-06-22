@@ -237,6 +237,7 @@ export class ChatRoomComponent implements OnInit, OnDestroy {
   fullImagePreview = signal<string | null>(null);
 
   private shouldScrollToBottom = true;
+  private presenceInterval: any = null;
 
   constructor() {
     effect(() => {
@@ -245,30 +246,42 @@ export class ChatRoomComponent implements OnInit, OnDestroy {
         Promise.resolve().then(() => this.scrollToBottom());
       }
     });
+
+    // Whenever the other participant's id becomes known, check their presence
+    effect(() => {
+      const otherId = this.otherUserId();
+      if (otherId != null) {
+        this.chatService.checkPresence([otherId]);
+      }
+    });
   }
 
-  conversationTitle = computed(() => {
-    const conv = this.chatService.conversations().find(c => c.id === this.conversationId);
-    return conv?.title || conv?.otherParticipant || 'Chat';
-  });
+  private currentConversation = computed(() =>
+    this.chatService.conversations().find(c => c.id === this.conversationId)
+  );
 
-  conversationAvatar = computed(() => {
-    const conv = this.chatService.conversations().find(c => c.id === this.conversationId);
-    return conv?.avatar || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150';
-  });
+  otherUserId = computed(() => this.currentConversation()?.otherParticipantId);
+
+  conversationTitle = computed(() =>
+    this.currentConversation()?.title || this.currentConversation()?.otherParticipant || 'Chat'
+  );
+
+  conversationAvatar = computed(() =>
+    this.currentConversation()?.avatar || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150'
+  );
+
+  isOtherOnline = computed(() => this.chatService.isUserOnline(this.otherUserId()));
 
   chatStatusText = computed(() => {
-    const status = this.chatService.wsStatus();
-    if (status === 'connected') return 'Online';
-    if (status === 'connecting') return 'Connecting...';
-    return 'Active';
+    if (this.chatService.wsStatus() === 'connecting') return 'Connecting...';
+    return this.isOtherOnline() ? 'Online' : 'Offline';
   });
 
   chatStatusClass = computed(() => {
-    const status = this.chatService.wsStatus();
-    if (status === 'connected') return 'text-emerald-500 font-semibold';
-    if (status === 'connecting') return 'text-amber-500 animate-pulse font-medium';
-    return 'text-slate-400 dark:text-slate-500';
+    if (this.chatService.wsStatus() === 'connecting') return 'text-amber-500 animate-pulse font-medium';
+    return this.isOtherOnline()
+      ? 'text-emerald-500 font-semibold'
+      : 'text-slate-400 dark:text-slate-500';
   });
 
   ngOnInit() {
@@ -286,10 +299,17 @@ export class ChatRoomComponent implements OnInit, OnDestroy {
     this.chatService.clearMessages();
     this.chatService.loadMessages(this.conversationId);
     this.chatService.connectWebSocket(this.conversationId);
+
+    // Refresh the other user's online status periodically (backend caches 60s)
+    this.presenceInterval = setInterval(() => {
+      const otherId = this.otherUserId();
+      if (otherId != null) this.chatService.checkPresence([otherId]);
+    }, 60000);
   }
 
   ngOnDestroy() {
     this.chatService.disconnectWebSocket();
+    if (this.presenceInterval) clearInterval(this.presenceInterval);
   }
 
   isOwnMessage(msg: ChatMessage): boolean {

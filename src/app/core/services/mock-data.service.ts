@@ -661,24 +661,37 @@ export class SocialService {
   }
 
   searchHashtags(query: string): Observable<{ name: string; count: number }[]> {
-    if (!query.trim()) return of([]);
     const q = query.trim().toLowerCase().replace(/^#/, '');
-    // No /v1/search/hashtags/ endpoint in API — extract from loaded posts
-    {
-        const tagCounts = new Map<string, number>();
-        for (const post of [...this.posts(), ...this.allPosts()]) {
-          const matches = post.caption.match(/#([a-zA-Z0-9_]+)/g) || [];
-          for (const tag of matches) {
-            const name = tag.slice(1);
-            tagCounts.set(name, (tagCounts.get(name) || 0) + 1);
-          }
-        }
-        const results = Array.from(tagCounts.entries())
-          .filter(([name]) => name.toLowerCase().includes(q))
-          .sort((a, b) => b[1] - a[1])
-          .map(([name, count]) => ({ name, count }));
-        return of(results);
+    // Backend now exposes top-10 trending hashtags of the last 24h.
+    // We fetch that list and filter it client-side by the query (empty query = full top-10).
+    return this.http.get<any>(`${environment.apiUrl}/v1/posts/trending-hashtags/`).pipe(
+      switchMap(res => {
+        // Response may be a raw array or wrapped in { data: [...] }
+        const list: any[] = Array.isArray(res) ? res : (res?.data ?? []);
+        const mapped = list
+          .map(t => ({ name: t.name, count: t.post_count ?? t.count ?? 0 }))
+          .filter(t => !q || t.name.toLowerCase().includes(q))
+          .sort((a, b) => b.count - a.count);
+        return of(mapped);
+      }),
+      catchError(() => of(this.extractLocalHashtags(q)))
+    );
+  }
+
+  // Fallback: derive hashtags from already-loaded post captions
+  private extractLocalHashtags(q: string): { name: string; count: number }[] {
+    const tagCounts = new Map<string, number>();
+    for (const post of [...this.posts(), ...this.allPosts()]) {
+      const matches = post.caption.match(/#([a-zA-Z0-9_]+)/g) || [];
+      for (const tag of matches) {
+        const name = tag.slice(1);
+        tagCounts.set(name, (tagCounts.get(name) || 0) + 1);
+      }
     }
+    return Array.from(tagCounts.entries())
+      .filter(([name]) => !q || name.toLowerCase().includes(q))
+      .sort((a, b) => b[1] - a[1])
+      .map(([name, count]) => ({ name, count }));
   }
 
   searchPosts(query: string): Observable<Post[]> {

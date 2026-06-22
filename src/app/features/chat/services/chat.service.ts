@@ -453,9 +453,32 @@ export class ChatService {
       lastMessage: c.last_message?.content || c.last_message || '',
       unreadCount: c.unread_count || 0,
       otherParticipant: c.other_participant?.username || c.title || '',
+      otherParticipantId: c.other_participant?.id,
       updatedAt: c.updated_at || c.updatedAt || '',
       createdAt: c.created_at || c.createdAt || ''
     };
+  }
+
+  // ─── Presence (online/offline) ─────────────────────────────────────────
+  // Backend caches results for 60s. Map of userId(string) -> online(boolean).
+  presence = signal<Record<string, boolean>>({});
+
+  checkPresence(userIds: number[]) {
+    const ids = userIds.filter(id => id != null);
+    if (ids.length === 0) return;
+    this.http.post<any>(`${environment.apiUrl}/v1/users/presence/`, { user_ids: ids }).subscribe({
+      next: (res) => {
+        // Response may be raw { "1": true } or wrapped in { data: {...} }
+        const map = res?.data ?? res ?? {};
+        this.presence.update(current => ({ ...current, ...map }));
+      },
+      error: () => { /* presence is best-effort */ }
+    });
+  }
+
+  isUserOnline(userId?: number): boolean {
+    if (userId == null) return false;
+    return this.presence()[String(userId)] === true;
   }
 
   private mapMessage(m: any, conversationId: string): ChatMessage {
