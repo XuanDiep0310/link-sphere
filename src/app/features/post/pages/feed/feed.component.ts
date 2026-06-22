@@ -564,19 +564,13 @@ export class FeedComponent {
   submitComment(postId: string) {
     const text = this.newComments[postId];
     if (text && text.trim()) {
-      const reply = this.replyingTo();
-      
-      if (reply && reply.postId === postId) {
-        // Submit nested reply
-        this.mockData.addCommentReply(postId, reply.commentId, text.trim());
-        this.replyingTo.set(null);
-      } else {
-        // Submit standard top-level comment
-        this.mockData.addComment(postId, text.trim());
-      }
-      
+      // Backend stores comments flat (no parent_id), so a reply is just a normal
+      // comment whose text already carries the "@username " mention prefix
+      // (added by setReplyTarget). This way replies persist across reloads.
+      this.mockData.addComment(postId, text.trim());
+      this.replyingTo.set(null);
       this.newComments[postId] = '';
-      
+
       // Auto-expand comment section
       this.expandedComments.update(current => ({
         ...current,
