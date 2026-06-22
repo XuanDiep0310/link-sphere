@@ -14,7 +14,7 @@ export interface Comment {
 export interface Post {
   id: string;
   user: User;
-  imageUrl: string;
+  imageUrl?: string | null;
   caption: string;
   likes: number;
   hasLiked: boolean;
@@ -26,7 +26,7 @@ export interface Post {
 
 export interface ExploreItem {
   id: string;
-  imageUrl: string;
+  imageUrl?: string | null;
   likes: number;
   commentsCount: number;
   caption: string;

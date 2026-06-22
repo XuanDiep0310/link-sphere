@@ -1,10 +1,11 @@
-import { Component, ChangeDetectionStrategy, inject, signal, computed, OnInit, OnDestroy, ViewChild, ElementRef, effect } from '@angular/core';
+import { Component, ChangeDetectionStrategy, inject, signal, computed, OnInit, OnDestroy, ViewChild, ElementRef, effect, ChangeDetectorRef } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { ChatService } from 'src/app/features/chat/services/chat.service';
 import { AuthService } from 'src/app/core/services/auth.service';
 import { ChatMessage } from 'src/app/core/models/chat.model';
+import { Subscription } from 'rxjs';
 
 @Component({
   selector: 'app-chat-room',
@@ -32,6 +33,15 @@ import { ChatMessage } from 'src/app/core/models/chat.model';
           <span class="text-xs" [ngClass]="chatStatusClass()">
             {{ chatStatusText() }}
           </span>
+        </div>
+        <!-- Call Buttons -->
+        <div class="flex items-center gap-1">
+          <button (click)="startCall('audio')" class="p-2 rounded-xl text-slate-400 hover:text-violet-600 hover:bg-violet-50 dark:hover:bg-violet-950/30 transition-all">
+            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="w-5 h-5"><path stroke-linecap="round" stroke-linejoin="round" d="M2.25 6.75c0 8.284 6.716 15 15 15h2.25a2.25 2.25 0 002.25-2.25v-1.372c0-.516-.351-.966-.852-1.091l-4.423-1.106c-.44-.11-.902.055-1.173.417l-.97 1.293c-2.896-1.596-5.48-4.18-7.076-7.076l1.293-.97c.362-.271.527-.733.417-1.173L6.963 3.102a1.125 1.125 0 00-1.091-.852H4.5A2.25 2.25 0 002.25 4.5v2.25z" /></svg>
+          </button>
+          <button (click)="startCall('video')" class="p-2 rounded-xl text-slate-400 hover:text-violet-600 hover:bg-violet-50 dark:hover:bg-violet-950/30 transition-all">
+            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="w-5 h-5"><path stroke-linecap="round" stroke-linejoin="round" d="M15.75 10.5l4.72-4.72a.75.75 0 011.28.53v11.38a.75.75 0 01-1.28.53l-4.72-4.72M4.5 18.75h9a2.25 2.25 0 002.25-2.25v-9a2.25 2.25 0 00-2.25-2.25h-9A2.25 2.25 0 002.25 7.5v9a2.25 2.25 0 002.25 2.25z" /></svg>
+          </button>
         </div>
       </div>
 
@@ -195,6 +205,67 @@ import { ChatMessage } from 'src/app/core/models/chat.model';
         </div>
       </div>
 
+      <!-- WebRTC Call Overlay -->
+      <div *ngIf="callStatus() !== 'idle'" class="fixed inset-0 bg-slate-900/95 backdrop-blur-md z-[100] flex flex-col items-center justify-center">
+        <!-- Remote Video -->
+        <video #remoteVideo autoplay playsinline [class.hidden]="callType() === 'audio' || callStatus() !== 'connected'" class="absolute inset-0 w-full h-full object-cover"></video>
+        
+        <!-- Local Video (PIP) -->
+        <div *ngIf="callStatus() === 'connected' && callType() === 'video'" class="absolute top-6 right-6 w-32 md:w-48 aspect-[3/4] bg-slate-800 rounded-2xl overflow-hidden shadow-2xl border-2 border-slate-700">
+          <video #localVideo autoplay playsinline muted class="w-full h-full object-cover transform scale-x-[-1]"></video>
+        </div>
+
+        <!-- Audio Call Avatar (when video is off or audio call) -->
+        <div *ngIf="callType() === 'audio' && callStatus() === 'connected'" class="z-10 flex flex-col items-center justify-center space-y-6">
+          <div class="relative">
+            <img [src]="conversationAvatar()" class="w-32 h-32 rounded-full object-cover shadow-2xl ring-4 ring-violet-500/50">
+            <div class="absolute inset-0 rounded-full border-4 border-violet-500 animate-ping opacity-20"></div>
+          </div>
+          <h2 class="text-3xl font-bold text-white">{{ conversationTitle() }}</h2>
+          <p class="text-violet-300">In Call</p>
+        </div>
+
+        <!-- Ringing UI -->
+        <div *ngIf="callStatus() === 'ringing' || callStatus() === 'calling'" class="z-10 flex flex-col items-center justify-center space-y-8">
+          <div class="relative">
+            <img [src]="(callStatus() === 'ringing' ? callerInfo()?.avatar : conversationAvatar()) || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150'" class="w-32 h-32 rounded-full object-cover shadow-2xl z-10 relative">
+            <div class="absolute inset-0 rounded-full bg-violet-500 animate-ping opacity-40"></div>
+          </div>
+          <div class="text-center">
+            <h2 class="text-3xl font-bold text-white mb-2">{{ callStatus() === 'ringing' ? callerInfo()?.username : conversationTitle() }}</h2>
+            <p class="text-slate-300 text-lg">{{ callStatus() === 'ringing' ? 'Incoming ' + callType() + ' call...' : 'Calling...' }}</p>
+          </div>
+        </div>
+
+        <!-- Call Controls -->
+        <div class="absolute bottom-10 left-0 right-0 flex justify-center items-center gap-6 z-10">
+          <!-- Accept / Decline for Incoming -->
+          <ng-container *ngIf="callStatus() === 'ringing'">
+            <button (click)="declineCall()" class="w-16 h-16 bg-red-500 hover:bg-red-600 rounded-full flex items-center justify-center text-white shadow-lg transition-transform hover:scale-105">
+              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2.5" stroke="currentColor" class="w-8 h-8"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>
+            </button>
+            <button (click)="acceptCall()" class="w-16 h-16 bg-green-500 hover:bg-green-600 rounded-full flex items-center justify-center text-white shadow-lg transition-transform hover:scale-105 animate-bounce">
+              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2.5" stroke="currentColor" class="w-8 h-8"><path stroke-linecap="round" stroke-linejoin="round" d="M2.25 6.75c0 8.284 6.716 15 15 15h2.25a2.25 2.25 0 002.25-2.25v-1.372c0-.516-.351-.966-.852-1.091l-4.423-1.106c-.44-.11-.902.055-1.173.417l-.97 1.293c-2.896-1.596-5.48-4.18-7.076-7.076l1.293-.97c.362-.271.527-.733.417-1.173L6.963 3.102a1.125 1.125 0 00-1.091-.852H4.5A2.25 2.25 0 002.25 4.5v2.25z" /></svg>
+            </button>
+          </ng-container>
+
+          <!-- Connected / Calling Controls -->
+          <ng-container *ngIf="callStatus() === 'connected' || callStatus() === 'calling'">
+            <button (click)="toggleMute()" [class.bg-slate-700]="!isAudioMuted()" [class.bg-white]="isAudioMuted()" [class.text-white]="!isAudioMuted()" [class.text-slate-900]="isAudioMuted()" class="w-14 h-14 rounded-full flex items-center justify-center shadow-lg transition-colors">
+              <svg *ngIf="!isAudioMuted()" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="w-6 h-6"><path stroke-linecap="round" stroke-linejoin="round" d="M12 18.75a6 6 0 006-6v-1.5m-6 7.5a6 6 0 01-6-6v-1.5m6 7.5v3.75m-3.75 0h7.5M12 15.75a3 3 0 01-3-3V4.5a3 3 0 116 0v8.25a3 3 0 01-3 3z" /></svg>
+              <svg *ngIf="isAudioMuted()" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="w-6 h-6"><path stroke-linecap="round" stroke-linejoin="round" d="M12 18.75a6 6 0 006-6v-1.5m-6 7.5a6 6 0 01-6-6v-1.5m6 7.5v3.75m-3.75 0h7.5M12 15.75a3 3 0 01-3-3V4.5a3 3 0 116 0v8.25a3 3 0 01-3 3zM9.75 9.75l4.5 4.5m0-4.5l-4.5 4.5" /></svg>
+            </button>
+            <button *ngIf="callType() === 'video'" (click)="toggleVideo()" [class.bg-slate-700]="!isVideoMuted()" [class.bg-white]="isVideoMuted()" [class.text-white]="!isVideoMuted()" [class.text-slate-900]="isVideoMuted()" class="w-14 h-14 rounded-full flex items-center justify-center shadow-lg transition-colors">
+              <svg *ngIf="!isVideoMuted()" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="w-6 h-6"><path stroke-linecap="round" stroke-linejoin="round" d="M15.75 10.5l4.72-4.72a.75.75 0 011.28.53v11.38a.75.75 0 01-1.28.53l-4.72-4.72M4.5 18.75h9a2.25 2.25 0 002.25-2.25v-9a2.25 2.25 0 00-2.25-2.25h-9A2.25 2.25 0 002.25 7.5v9a2.25 2.25 0 002.25 2.25z" /></svg>
+              <svg *ngIf="isVideoMuted()" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="w-6 h-6"><path stroke-linecap="round" stroke-linejoin="round" d="M15.75 10.5l4.72-4.72a.75.75 0 011.28.53v11.38a.75.75 0 01-1.28.53l-4.72-4.72M4.5 18.75h9a2.25 2.25 0 002.25-2.25v-9a2.25 2.25 0 00-2.25-2.25h-9A2.25 2.25 0 002.25 7.5v9a2.25 2.25 0 002.25 2.25zM3 3l18 18" /></svg>
+            </button>
+            <button (click)="endCall()" class="w-16 h-16 bg-red-500 hover:bg-red-600 rounded-full flex items-center justify-center text-white shadow-lg transition-transform hover:scale-105">
+              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2.5" stroke="currentColor" class="w-8 h-8"><path stroke-linecap="round" stroke-linejoin="round" d="M14.25 9v1.5m0 0v1.5m0-1.5h1.5m-1.5 0H12m-9.75 4.5l1.293-1.293a2.25 2.25 0 013.182 0l1.293 1.293m0 0l-1.293-1.293m0 0l-1.293 1.293m0 0l1.293-1.293A2.25 2.25 0 0112 11.25l1.293 1.293" /></svg>
+            </button>
+          </ng-container>
+        </div>
+      </div>
+
       <!-- Image Preview Modal -->
       <div
         *ngIf="fullImagePreview()"
@@ -225,6 +296,7 @@ export class ChatRoomComponent implements OnInit, OnDestroy {
   private route = inject(ActivatedRoute);
   private router = inject(Router);
   private authService = inject(AuthService);
+  private cdr = inject(ChangeDetectorRef);
 
   @ViewChild('messagesContainer') messagesContainer!: ElementRef<HTMLDivElement>;
   @ViewChild('messageInput') messageInput!: ElementRef<HTMLTextAreaElement>;
@@ -238,6 +310,24 @@ export class ChatRoomComponent implements OnInit, OnDestroy {
 
   private shouldScrollToBottom = true;
   private presenceInterval: any = null;
+  private webrtcSub: Subscription | null = null;
+
+  // WebRTC State
+  callStatus = signal<'idle' | 'calling' | 'ringing' | 'connected'>('idle');
+  callType = signal<'audio' | 'video'>('video');
+  isAudioMuted = signal(false);
+  isVideoMuted = signal(false);
+  callerInfo = signal<{id: number, username: string, avatar: string, type: 'audio' | 'video'} | null>(null);
+
+  @ViewChild('localVideo') localVideo?: ElementRef<HTMLVideoElement>;
+  @ViewChild('remoteVideo') remoteVideo?: ElementRef<HTMLVideoElement>;
+
+  private peerConnection: RTCPeerConnection | null = null;
+  private localStream: MediaStream | null = null;
+  private remoteStream: MediaStream | null = null;
+  private iceServers = {
+    iceServers: [{ urls: 'stun:stun.l.google.com:19302' }]
+  };
 
   constructor() {
     effect(() => {
@@ -260,14 +350,28 @@ export class ChatRoomComponent implements OnInit, OnDestroy {
     this.chatService.conversations().find(c => c.id === this.conversationId)
   );
 
-  otherUserId = computed(() => this.currentConversation()?.otherParticipantId);
+  private otherParticipantFromMessages = computed(() => {
+    const currentUser = this.authService.currentUser();
+    const msg = this.chatService.messages().find(m => 
+      m.sender && currentUser && m.sender.username !== currentUser.username && String(m.sender.id) !== String(currentUser.id)
+    );
+    return msg ? msg.sender : null;
+  });
+
+  otherUserId = computed(() => {
+    const convId = this.currentConversation()?.otherParticipantId;
+    if (convId) return Number(convId);
+    const msgId = this.otherParticipantFromMessages()?.id;
+    if (msgId) return Number(msgId);
+    return undefined;
+  });
 
   conversationTitle = computed(() =>
-    this.currentConversation()?.title || this.currentConversation()?.otherParticipant || 'Chat'
+    this.currentConversation()?.title || this.currentConversation()?.otherParticipant || this.otherParticipantFromMessages()?.username || 'Chat'
   );
 
   conversationAvatar = computed(() =>
-    this.currentConversation()?.avatar || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150'
+    this.currentConversation()?.avatar || this.otherParticipantFromMessages()?.avatar || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150'
   );
 
   isOtherOnline = computed(() => this.chatService.isUserOnline(this.otherUserId()));
@@ -300,6 +404,11 @@ export class ChatRoomComponent implements OnInit, OnDestroy {
     this.chatService.loadMessages(this.conversationId);
     this.chatService.connectWebSocket(this.conversationId);
 
+    // Subscribe to WebRTC signals
+    this.webrtcSub = this.chatService.webrtcSignal$.subscribe(data => {
+      this.handleWebRTCSignal(data);
+    });
+
     // Refresh the other user's online status periodically (backend caches 60s)
     this.presenceInterval = setInterval(() => {
       const otherId = this.otherUserId();
@@ -309,6 +418,8 @@ export class ChatRoomComponent implements OnInit, OnDestroy {
 
   ngOnDestroy() {
     this.chatService.disconnectWebSocket();
+    if (this.webrtcSub) this.webrtcSub.unsubscribe();
+    this.cleanupCall();
     if (this.presenceInterval) clearInterval(this.presenceInterval);
   }
 
@@ -424,5 +535,196 @@ export class ChatRoomComponent implements OnInit, OnDestroy {
         el.scrollTop = el.scrollHeight;
       }
     } catch {}
+  }
+
+  // ─── WebRTC Logic ──────────────────────────────────────────────────────────
+
+  async startCall(type: 'audio' | 'video') {
+    const targetId = this.otherUserId();
+    if (!targetId) return;
+
+    this.callType.set(type);
+    this.callStatus.set('calling');
+
+    try {
+      this.localStream = await navigator.mediaDevices.getUserMedia({ video: type === 'video', audio: true });
+      this.attachLocalStream();
+      this.setupPeerConnection(targetId);
+
+      const offer = await this.peerConnection!.createOffer();
+      await this.peerConnection!.setLocalDescription(offer);
+
+      this.chatService.sendWebRTCSignal('webrtc_offer', targetId, { sdp: offer.sdp, type: offer.type, callType: type });
+    } catch (err) {
+      console.error('Failed to start call', err);
+      this.chatService.showToast('Could not access camera or microphone', 'error');
+      this.cleanupCall();
+    }
+  }
+
+  declineCall() {
+    const caller = this.callerInfo();
+    if (caller) {
+      this.chatService.sendWebRTCSignal('webrtc_reject', caller.id, {});
+    }
+    this.cleanupCall();
+  }
+
+  endCall() {
+    const targetId = this.otherUserId();
+    if (targetId) {
+      this.chatService.sendWebRTCSignal('webrtc_end', targetId, {});
+    }
+    this.cleanupCall();
+  }
+
+  toggleMute() {
+    if (this.localStream) {
+      const audioTrack = this.localStream.getAudioTracks()[0];
+      if (audioTrack) {
+        audioTrack.enabled = !audioTrack.enabled;
+        this.isAudioMuted.set(!audioTrack.enabled);
+      }
+    }
+  }
+
+  toggleVideo() {
+    if (this.localStream) {
+      const videoTrack = this.localStream.getVideoTracks()[0];
+      if (videoTrack) {
+        videoTrack.enabled = !videoTrack.enabled;
+        this.isVideoMuted.set(!videoTrack.enabled);
+      }
+    }
+  }
+
+  private setupPeerConnection(targetId: number) {
+    this.peerConnection = new RTCPeerConnection(this.iceServers);
+
+    if (this.localStream) {
+      this.localStream.getTracks().forEach(track => {
+        this.peerConnection!.addTrack(track, this.localStream!);
+      });
+    }
+
+    this.peerConnection.onicecandidate = (event) => {
+      if (event.candidate) {
+        this.chatService.sendWebRTCSignal('webrtc_ice_candidate', targetId, {
+          candidate: event.candidate.candidate,
+          sdpMid: event.candidate.sdpMid,
+          sdpMLineIndex: event.candidate.sdpMLineIndex
+        });
+      }
+    };
+
+    this.peerConnection.ontrack = (event) => {
+      this.remoteStream = event.streams[0];
+      this.attachRemoteStream();
+    };
+
+    this.peerConnection.onconnectionstatechange = () => {
+      if (this.peerConnection?.connectionState === 'disconnected' || this.peerConnection?.connectionState === 'failed') {
+        this.cleanupCall();
+      }
+    };
+  }
+
+  private pendingOffer: any = null;
+
+  private async handleWebRTCSignal(data: any) {
+    console.log('WEBRTC SIGNAL RECEIVED:', data);
+    const payload = data.payload || {};
+    const senderId = data.sender_id || data.senderId;
+
+    if (data.action === 'webrtc_offer') {
+      if (this.callStatus() !== 'idle') {
+        // Busy
+        this.chatService.sendWebRTCSignal('webrtc_reject', senderId, {});
+        return;
+      }
+      
+      const conv = this.currentConversation();
+      // Assume sender is the other participant
+      this.callerInfo.set({
+        id: senderId,
+        username: conv?.otherParticipant || 'Unknown',
+        avatar: conv?.avatar || '',
+        type: payload.callType || payload.type || 'video'
+      });
+      this.pendingOffer = payload;
+      this.callStatus.set('ringing');
+    } 
+    else if (data.action === 'webrtc_answer') {
+      if (this.peerConnection && this.callStatus() === 'calling') {
+        this.callStatus.set('connected');
+        await this.peerConnection.setRemoteDescription(new RTCSessionDescription(payload));
+      }
+    } 
+    else if (data.action === 'webrtc_ice_candidate') {
+      if (this.peerConnection) {
+        await this.peerConnection.addIceCandidate(new RTCIceCandidate(payload));
+      }
+    } 
+    else if (data.action === 'webrtc_reject' || data.action === 'webrtc_end') {
+      this.cleanupCall();
+    }
+    this.cdr.detectChanges();
+  }
+
+  async acceptCall() {
+    const caller = this.callerInfo();
+    const offer = this.pendingOffer;
+    if (!caller || !offer) return;
+
+    this.callType.set(caller.type);
+    this.callStatus.set('connected');
+
+    try {
+      this.localStream = await navigator.mediaDevices.getUserMedia({ video: caller.type === 'video', audio: true });
+      this.attachLocalStream();
+      this.setupPeerConnection(caller.id);
+
+      await this.peerConnection!.setRemoteDescription(new RTCSessionDescription(offer));
+      const answer = await this.peerConnection!.createAnswer();
+      await this.peerConnection!.setLocalDescription(answer);
+
+      this.chatService.sendWebRTCSignal('webrtc_answer', caller.id, { sdp: answer.sdp, type: answer.type });
+    } catch (err) {
+      console.error('Failed to accept call', err);
+      this.declineCall();
+    }
+  }
+
+  private attachLocalStream() {
+    setTimeout(() => {
+      if (this.localVideo && this.localVideo.nativeElement) {
+        this.localVideo.nativeElement.srcObject = this.localStream;
+      }
+    }, 100);
+  }
+
+  private attachRemoteStream() {
+    setTimeout(() => {
+      if (this.remoteVideo && this.remoteVideo.nativeElement) {
+        this.remoteVideo.nativeElement.srcObject = this.remoteStream;
+      }
+    }, 100);
+  }
+
+  private cleanupCall() {
+    if (this.localStream) {
+      this.localStream.getTracks().forEach(t => t.stop());
+      this.localStream = null;
+    }
+    if (this.peerConnection) {
+      this.peerConnection.close();
+      this.peerConnection = null;
+    }
+    this.remoteStream = null;
+    this.callStatus.set('idle');
+    this.callerInfo.set(null);
+    this.pendingOffer = null;
+    this.isAudioMuted.set(false);
+    this.isVideoMuted.set(false);
   }
 }

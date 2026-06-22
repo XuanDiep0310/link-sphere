@@ -2,7 +2,7 @@ import { Injectable, signal, computed, inject, OnDestroy } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { environment } from '../../../../environments/environment';
 import { Conversation, ChatMessage } from 'src/app/core/models/chat.model';
-import { Observable, of, catchError, switchMap, tap } from 'rxjs';
+import { Observable, of, catchError, switchMap, tap, Subject } from 'rxjs';
 import { User } from 'src/app/core/models/auth.model';
 import { MockDataService } from 'src/app/core/services/mock-data.service';
 
@@ -25,12 +25,14 @@ export class ChatService {
   totalUnreadCount = computed(() =>
     this.conversations().reduce((sum, c) => sum + c.unreadCount, 0)
   );
+  webrtcSignal$ = new Subject<any>();
 
   private ws: WebSocket | null = null;
   private currentConversationId: string | null = null;
   private connectTimeoutId: any = null;
   private tempIdCounter = 0;
   private pollingInterval: any = null;
+  private pingInterval: any = null;
 
   // ─── Conversations ─────────────────────────────────────────────────────
 
@@ -234,6 +236,11 @@ export class ChatService {
         this.wsStatus.set('connected');
         // Backend auto-subscribes each user to their personal group `user_{id}`
         // on connect, so no extra join action is needed here.
+        
+        // Send a ping immediately and then every 30s to update presence cache
+        this.sendWsPing();
+        if (this.pingInterval) clearInterval(this.pingInterval);
+        this.pingInterval = setInterval(() => this.sendWsPing(), 30000);
       };
 
       this.ws.onmessage = (event) => {
@@ -247,6 +254,20 @@ export class ChatService {
           }
 
           // Backend broadcast envelope: { event, data: {...} }
+          if (data.event && data.event.startsWith('webrtc_')) {
+            this.webrtcSignal$.next({
+              action: data.event,
+              conversation_id: data.data.conversation_id,
+              sender_id: data.data.sender_id,
+              payload: data.data.payload
+            });
+            return;
+          }
+          if (data.action && data.action.startsWith('webrtc_')) {
+            this.webrtcSignal$.next(data);
+            return;
+          }
+
           // Events: 'message_received' | 'typing' | 'messages_read'
           // Only handle new messages here; ignore typing / read receipts.
           if (data.event && data.event !== 'message_received') return;
@@ -292,6 +313,7 @@ export class ChatService {
 
       this.ws.onclose = (event: CloseEvent) => {
         if (this.connectTimeoutId) clearTimeout(this.connectTimeoutId);
+        if (this.pingInterval) clearInterval(this.pingInterval);
         this.isConnected.set(false);
         this.wsStatus.set('disconnected');
         console.warn(`WebSocket closed. Code: ${event.code}, Reason: ${event.reason}`);
@@ -300,18 +322,26 @@ export class ChatService {
       this.ws.onerror = (err) => {
         console.warn('WebSocket error:', err);
         if (this.connectTimeoutId) clearTimeout(this.connectTimeoutId);
+        if (this.pingInterval) clearInterval(this.pingInterval);
         this.isConnected.set(false);
         this.wsStatus.set('disconnected');
       };
     } catch (err) {
       console.warn('Failed to create WebSocket connection:', err);
       if (this.connectTimeoutId) clearTimeout(this.connectTimeoutId);
+      if (this.pingInterval) clearInterval(this.pingInterval);
       this.isConnected.set(false);
       this.wsStatus.set('disconnected');
     }
 
     // Poll every 5s as fallback in case WS doesn't broadcast to receiver
     this.startPolling(conversationId);
+  }
+
+  private sendWsPing() {
+    if (this.ws && this.ws.readyState === WebSocket.OPEN && this.currentConversationId) {
+      this.ws.send(JSON.stringify({ action: 'ping', conversation_id: this.currentConversationId }));
+    }
   }
 
   sendMessage(content: string, messageType: 'text' | 'image' = 'text', fileUrl?: string) {
@@ -355,6 +385,19 @@ export class ChatService {
     this.ws.send(JSON.stringify(payload));
   }
 
+  sendWebRTCSignal(action: string, targetUserId: number, payload?: any) {
+    if (!this.ws || this.ws.readyState !== WebSocket.OPEN) {
+      console.warn('Cannot send WebRTC signal, WebSocket not connected.');
+      return;
+    }
+    this.ws.send(JSON.stringify({
+      action,
+      conversation_id: this.currentConversationId,
+      target_user_id: targetUserId,
+      payload: payload || {}
+    }));
+  }
+
   disconnectWebSocket() {
     if (this.connectTimeoutId) {
       clearTimeout(this.connectTimeoutId);
@@ -367,6 +410,10 @@ export class ChatService {
     if (this.pollingInterval) {
       clearInterval(this.pollingInterval);
       this.pollingInterval = null;
+    }
+    if (this.pingInterval) {
+      clearInterval(this.pingInterval);
+      this.pingInterval = null;
     }
     this.isConnected.set(false);
     this.wsStatus.set('disconnected');
@@ -466,10 +513,21 @@ export class ChatService {
   checkPresence(userIds: number[]) {
     const ids = userIds.filter(id => id != null);
     if (ids.length === 0) return;
-    this.http.post<any>(`${environment.apiUrl}/v1/users/presence/`, { user_ids: ids }).subscribe({
+    
+    // Convert array to comma-separated string for the query param
+    const userIdsParam = ids.join(',');
+    
+    this.http.get<any>(`${environment.apiUrl}/v1/users/presence/`, { params: { user_ids: userIdsParam } }).subscribe({
       next: (res) => {
-        // Response may be raw { "1": true } or wrapped in { data: {...} }
-        const map = res?.data ?? res ?? {};
+        const data = res?.data ?? res ?? {};
+        const map: Record<string, boolean> = {};
+        
+        // Data is in format: { "1": { "status": "online" | "offline", "last_seen": ... } }
+        for (const [key, value] of Object.entries(data)) {
+          const valObj = value as any;
+          map[key] = valObj && valObj.status === 'online';
+        }
+        
         this.presence.update(current => ({ ...current, ...map }));
       },
       error: () => { /* presence is best-effort */ }
