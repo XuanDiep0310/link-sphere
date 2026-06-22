@@ -63,6 +63,23 @@ export class SocialService {
     localStorage.setItem('bookmarked_post_ids', JSON.stringify(Array.from(ids)));
   }
 
+  // Like State — localStorage cache so the liked-heart survives reloads even if
+  // a GET momentarily returns is_liked=false (e.g. during a token refresh window)
+  private likedIds = signal<Set<string>>(this.loadLikesFromStorage());
+
+  private loadLikesFromStorage(): Set<string> {
+    try {
+      const raw = localStorage.getItem('liked_post_ids');
+      return raw ? new Set<string>(JSON.parse(raw)) : new Set<string>();
+    } catch {
+      return new Set<string>();
+    }
+  }
+
+  private saveLikesToStorage(ids: Set<string>) {
+    localStorage.setItem('liked_post_ids', JSON.stringify(Array.from(ids)));
+  }
+
   loadBookmarks(username: string) {
     this.http.get<{ success: boolean; data?: any[] }>(
       `${environment.apiUrl}/v1/users/${username}/bookmarks/`
@@ -320,49 +337,39 @@ export class SocialService {
   // ─── LIKE/UNLIKE (API INTEGRATED) ──────────────────────────────────────
 
   toggleLike(postId: string) {
-    // Optimistic update first
-    this.posts.update(currentPosts =>
-      currentPosts.map(p => {
-        if (p.id === postId) {
-          const hasLiked = !p.hasLiked;
-          return {
-            ...p,
-            hasLiked,
-            likes: hasLiked ? p.likes + 1 : p.likes - 1
-          };
-        }
-        return p;
-      })
-    );
+    // Determine the next state from the currently-loaded post (fallback to the cache)
+    const current = this.posts().find(p => p.id === postId)
+                 ?? this.allPosts().find(p => p.id === postId);
+    const willLike = current ? !current.hasLiked : !this.likedIds().has(postId);
 
-    // Also update allPosts
-    this.allPosts.update(currentPosts =>
-      currentPosts.map(p => {
-        if (p.id === postId) {
-          const hasLiked = !p.hasLiked;
-          return {
-            ...p,
-            hasLiked,
-            likes: hasLiked ? p.likes + 1 : p.likes - 1
-          };
-        }
-        return p;
-      })
-    );
+    const apply = (p: Post) => p.id === postId
+      ? { ...p, hasLiked: willLike, likes: Math.max(0, p.likes + (willLike ? 1 : -1)) }
+      : p;
 
-    // Call API
+    // Optimistic update + persist liked id so the heart survives reloads
+    this.posts.update(list => list.map(apply));
+    this.allPosts.update(list => list.map(apply));
+    this.likedIds.update(set => {
+      const next = new Set(set);
+      willLike ? next.add(postId) : next.delete(postId);
+      this.saveLikesToStorage(next);
+      return next;
+    });
+
     this.http.post<any>(`${environment.apiUrl}/v1/posts/${postId}/like/`, {}).subscribe({
       error: () => {
-        // Revert on error
-        this.posts.update(currentPosts =>
-          currentPosts.map(p => {
-            if (p.id === postId) {
-              const hasLiked = !p.hasLiked;
-              return { ...p, hasLiked, likes: hasLiked ? p.likes + 1 : p.likes - 1 };
-            }
-            return p;
-          })
-        );
+        // Revert both the post lists and the persisted cache
+        const revert = (p: Post) => p.id === postId
+          ? { ...p, hasLiked: !willLike, likes: Math.max(0, p.likes + (willLike ? -1 : 1)) }
+          : p;
+        this.posts.update(list => list.map(revert));
+        this.allPosts.update(list => list.map(revert));
+        this.likedIds.update(set => {
+          const next = new Set(set);
+          willLike ? next.delete(postId) : next.add(postId);
+          this.saveLikesToStorage(next);
+          return next;
+        });
       }
     });
   }
@@ -779,7 +786,7 @@ export class SocialService {
       imageUrl: item.image || 'https://images.unsplash.com/photo-1509042239860-f550ce710b93?w=800',
       caption: item.content || '',
       likes: item.likes_count || 0,
-      hasLiked: item.is_liked === 'true' || item.is_liked === true || String(item.is_liked).toLowerCase() === 'true',
+      hasLiked: item.is_liked === 'true' || item.is_liked === true || String(item.is_liked).toLowerCase() === 'true' || this.likedIds().has(String(item.id)),
       hasBookmarked: item.is_bookmarked === true || item.is_bookmarked === 'true' || this.bookmarkedIds().has(String(item.id)),
       comments: [],
       commentsCount: item.comments_count || 0,
