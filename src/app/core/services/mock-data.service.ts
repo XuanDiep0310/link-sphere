@@ -4,7 +4,7 @@ import { User } from '../models/auth.model';
 import { Post, Comment, Notification, ExploreItem } from '../models/social.model';
 import { environment } from '../../../environments/environment';
 import { AuthService } from './auth.service';
-import { tap, Observable, of, switchMap, catchError } from 'rxjs';
+import { tap, Observable, of, switchMap, catchError, map } from 'rxjs';
 
 @Injectable({
   providedIn: 'root'
@@ -225,6 +225,7 @@ export class SocialService {
             this.posts.set(mapped);
             this.allPosts.set(mapped);
             this.updateMockUsersFromPosts(mapped);
+            this.enrichPostCommentCounts(mapped);
             this.isLoadingFeed.set(false);
           } else {
             // Fallback to all posts when following feed is empty
@@ -247,6 +248,7 @@ export class SocialService {
           this.posts.set(mapped);
           this.allPosts.set(mapped);
           this.updateMockUsersFromPosts(mapped);
+          this.enrichPostCommentCounts(mapped);
         } else {
           this.posts.set([]);
         }
@@ -273,6 +275,8 @@ export class SocialService {
             avatarUrl: item.author.avatar || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150'
           }));
           this.exploreItems.set(mapped);
+          // Backend PostSerializer has no comments_count → fetch each count
+          this.enrichExploreCommentCounts(mapped);
         } else {
           this.exploreItems.set([]);
         }
@@ -280,6 +284,38 @@ export class SocialService {
       error: () => {
         this.exploreItems.set([]);
       }
+    });
+  }
+
+  // Backend doesn't return comments_count anywhere, so we count via the
+  // comments endpoint per post and patch the result into the loaded items.
+  private fetchCommentCount(postId: string) {
+    return this.http.get<any>(`${environment.apiUrl}/v1/posts/${postId}/comments/`).pipe(
+      map((res: any) => {
+        const list = Array.isArray(res) ? res : (res?.data ?? []);
+        return Array.isArray(list) ? list.length : 0;
+      }),
+      catchError(() => of(0))
+    );
+  }
+
+  private enrichExploreCommentCounts(items: ExploreItem[]) {
+    items.forEach(item => {
+      this.fetchCommentCount(item.id).subscribe(count => {
+        this.exploreItems.update(arr =>
+          arr.map(it => it.id === item.id ? { ...it, commentsCount: count } : it)
+        );
+      });
+    });
+  }
+
+  private enrichPostCommentCounts(posts: Post[]) {
+    posts.forEach(p => {
+      this.fetchCommentCount(p.id).subscribe(count => {
+        const apply = (post: Post) => post.id === p.id ? { ...post, commentsCount: count } : post;
+        this.posts.update(arr => arr.map(apply));
+        this.allPosts.update(arr => arr.map(apply));
+      });
     });
   }
 
@@ -420,7 +456,9 @@ export class SocialService {
             replies: []
           }));
 
-          const updatePost = (p: Post) => p.id === postId ? { ...p, comments: mappedComments } : p;
+          const updatePost = (p: Post) => p.id === postId
+            ? { ...p, comments: mappedComments, commentsCount: mappedComments.length }
+            : p;
           this.posts.update(list => list.map(updatePost));
           this.allPosts.update(list => list.map(updatePost));
           this.userPostsMap.update(map => {
