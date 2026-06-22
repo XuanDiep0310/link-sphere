@@ -525,9 +525,8 @@ export class FeedComponent {
   }
 
   onPostDblClick(postId: string) {
-    // Check if not already liked
-    const post = this.mockData.posts().find(p => p.id === postId);
-    if (post && !post.hasLiked) {
+    const post = this.mockData.posts().find(p => p.id === postId) || this.mockData.allPosts().find(p => p.id === postId);
+    if (post) {
       this.mockData.toggleLike(postId);
     }
     

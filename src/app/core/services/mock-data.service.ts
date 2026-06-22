@@ -225,7 +225,6 @@ export class SocialService {
             this.posts.set(mapped);
             this.allPosts.set(mapped);
             this.updateMockUsersFromPosts(mapped);
-            this.enrichPostCommentCounts(mapped);
             this.isLoadingFeed.set(false);
           } else {
             // Fallback to all posts when following feed is empty
@@ -248,7 +247,6 @@ export class SocialService {
           this.posts.set(mapped);
           this.allPosts.set(mapped);
           this.updateMockUsersFromPosts(mapped);
-          this.enrichPostCommentCounts(mapped);
         } else {
           this.posts.set([]);
         }
@@ -275,8 +273,6 @@ export class SocialService {
             avatarUrl: item.author.avatar || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150'
           }));
           this.exploreItems.set(mapped);
-          // Backend PostSerializer has no comments_count → fetch each count
-          this.enrichExploreCommentCounts(mapped);
         } else {
           this.exploreItems.set([]);
         }
@@ -287,49 +283,7 @@ export class SocialService {
     });
   }
 
-  // Backend doesn't return comments_count anywhere, so we count via the
-  // comments endpoint per post and patch the result into the loaded items.
-  private fetchCommentCount(postId: string) {
-    return this.http.get<any>(`${environment.apiUrl}/v1/posts/${postId}/comments/`).pipe(
-      map((res: any) => {
-        const list = Array.isArray(res) ? res : (res?.data ?? []);
-        return Array.isArray(list) ? list.length : 0;
-      }),
-      catchError(() => of(0))
-    );
-  }
-
-  private enrichExploreCommentCounts(items: ExploreItem[]) {
-    items.forEach(item => {
-      this.fetchCommentCount(item.id).subscribe(count => {
-        this.exploreItems.update(arr =>
-          arr.map(it => it.id === item.id ? { ...it, commentsCount: count } : it)
-        );
-      });
-    });
-  }
-
-  private enrichPostCommentCounts(posts: Post[]) {
-    posts.forEach(p => {
-      this.fetchCommentCount(p.id).subscribe(count => {
-        const apply = (post: Post) => post.id === p.id ? { ...post, commentsCount: count } : post;
-        this.posts.update(arr => arr.map(apply));
-        this.allPosts.update(arr => arr.map(apply));
-      });
-    });
-  }
-
-  private enrichUserPostCommentCounts(username: string, posts: Post[]) {
-    posts.forEach(p => {
-      this.fetchCommentCount(p.id).subscribe(count => {
-        this.userPostsMap.update(m => {
-          const list = m[username];
-          if (!list) return m;
-          return { ...m, [username]: list.map(post => post.id === p.id ? { ...post, commentsCount: count } : post) };
-        });
-      });
-    });
-  }
+  // Removed enrich methods
 
   loadAllPosts() {
     this.http.get<{ success: boolean; data?: any[] }>(`${environment.apiUrl}/v1/posts/`).subscribe({
@@ -829,14 +783,18 @@ export class SocialService {
           const mapped: Notification[] = res.data.map((n: any) => ({
             id: String(n.id),
             user: {
-              username: n.sender?.username || 'unknown',
-              avatarUrl: n.sender?.avatar || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150'
+              id: '0',
+              username: n.sender?.username || n.sender || 'someone',
+              avatarUrl: n.sender?.avatar || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150',
+              followersCount: n.sender?.followers_count || 0,
+              followingCount: n.sender?.following_count || 0,
+              email: n.sender?.email || ''
             },
             type: n.type as 'like' | 'comment' | 'follow',
             details: n.message || this.getNotificationText(n.type),
             createdAt: this.formatTimeAgo(n.created_at),
             isRead: n.is_read || false,
-            isFollowingBack: false,
+            isFollowingBack: n.sender?.is_following || false,
             // TODO: backend cần trả về post_id trong response
             postId: n.post_id ? String(n.post_id) : undefined
           }));
@@ -908,7 +866,6 @@ export class SocialService {
           : [];
         const mapped = rawList.map((item: any) => this.mapPostFromApi(item));
         this.userPostsMap.update(m => ({ ...m, [username]: mapped }));
-        this.enrichUserPostCommentCounts(username, mapped);
         this.isLoadingUserPosts.set(false);
       },
       error: () => {
@@ -927,20 +884,23 @@ export class SocialService {
   }
 
   getPostById(id: string): Observable<Post> {
-    // No GET /v1/posts/{id}/ in API — search loaded state
     const fromAll = this.allPosts().find(p => p.id === id)
                  ?? this.posts().find(p => p.id === id);
     if (fromAll) return of(fromAll);
 
-    // Fallback: search through userPostsMap
     for (const username in this.userPostsMap()) {
       const found = this.userPostsMap()[username].find(p => p.id === id);
       if (found) return of(found);
     }
 
-    return new Observable(observer => {
-      observer.error(new Error('Post not found'));
-    });
+    return this.http.get<{ success: boolean; data?: any }>(`${environment.apiUrl}/v1/posts/${id}/`).pipe(
+      map(res => {
+        if (res.success && res.data) {
+          return this.mapPostFromApi(res.data);
+        }
+        throw new Error('Post not found');
+      })
+    );
   }
 
   // ─── UPDATE PROFILE (MOCK — TODO: PATCH /v1/users/profile/) ──────────────
