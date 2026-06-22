@@ -319,6 +319,18 @@ export class SocialService {
     });
   }
 
+  private enrichUserPostCommentCounts(username: string, posts: Post[]) {
+    posts.forEach(p => {
+      this.fetchCommentCount(p.id).subscribe(count => {
+        this.userPostsMap.update(m => {
+          const list = m[username];
+          if (!list) return m;
+          return { ...m, [username]: list.map(post => post.id === p.id ? { ...post, commentsCount: count } : post) };
+        });
+      });
+    });
+  }
+
   loadAllPosts() {
     this.http.get<{ success: boolean; data?: any[] }>(`${environment.apiUrl}/v1/posts/`).subscribe({
       next: (res) => {
@@ -848,6 +860,7 @@ export class SocialService {
           : [];
         const mapped = rawList.map((item: any) => this.mapPostFromApi(item));
         this.userPostsMap.update(m => ({ ...m, [username]: mapped }));
+        this.enrichUserPostCommentCounts(username, mapped);
         this.isLoadingUserPosts.set(false);
       },
       error: () => {
