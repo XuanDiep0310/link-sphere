@@ -80,8 +80,13 @@ import { Post } from 'src/app/core/models/social.model';
           </div>
         </div>
 
+        <!-- Text-only Caption (Top) -->
+        <div *ngIf="!p.imageUrl" class="px-5 pb-3">
+          <p class="text-[15px] text-slate-800 dark:text-slate-200 leading-relaxed whitespace-pre-wrap">{{ p.caption }}</p>
+        </div>
+
         <!-- Image -->
-        <div class="aspect-square relative overflow-hidden bg-slate-100 dark:bg-slate-900">
+        <div *ngIf="p.imageUrl" class="aspect-square relative overflow-hidden bg-slate-100 dark:bg-slate-900">
           <img
             [src]="p.imageUrl"
             [alt]="p.caption"
@@ -131,7 +136,7 @@ import { Post } from 'src/app/core/models/social.model';
           <p class="font-extrabold text-slate-800 dark:text-white text-sm mb-1.5">{{ p.likes }} likes</p>
 
           <!-- Caption -->
-          <p class="text-sm text-slate-800 dark:text-slate-200 leading-relaxed mb-3">
+          <p *ngIf="p.imageUrl" class="text-sm text-slate-800 dark:text-slate-200 leading-relaxed mb-3">
             <span
               [routerLink]="['/profile', p.user.username]"
               class="font-extrabold text-slate-900 dark:text-white mr-1.5 hover:underline cursor-pointer"
@@ -141,28 +146,62 @@ import { Post } from 'src/app/core/models/social.model';
 
           <!-- Comments Section (always open) -->
           <div class="pt-3 border-t border-slate-100 dark:border-slate-700/60 space-y-3.5">
-            <div *ngFor="let comment of p.comments" class="text-xs flex items-start gap-2.5">
-              <img
-                [src]="comment.avatarUrl || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150'"
-                class="w-8 h-8 rounded-full object-cover flex-shrink-0 cursor-pointer"
-                [routerLink]="['/profile', comment.username]"
-              >
-              <div class="flex-grow">
-                <span
+            <div *ngFor="let comment of p.comments">
+              <div class="text-xs flex items-start gap-2.5">
+                <img
+                  [src]="comment.avatarUrl || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150'"
+                  class="w-8 h-8 rounded-full object-cover flex-shrink-0 cursor-pointer"
                   [routerLink]="['/profile', comment.username]"
-                  class="font-extrabold text-slate-900 dark:text-white hover:underline cursor-pointer mr-1.5"
-                >{{ comment.username }}</span>
-                <span class="text-slate-600 dark:text-slate-300">{{ comment.text }}</span>
-                <div class="flex items-center gap-3 mt-1 text-[10px] text-slate-400 font-bold">
-                  <span>{{ comment.createdAt }}</span>
-                  <button
-                    (click)="toggleCommentLike(comment.id)"
-                    class="hover:text-red-500 transition-colors"
-                    [class.text-red-500]="comment.hasLiked"
-                  >{{ comment.likesCount ? comment.likesCount + ' likes' : 'Like' }}</button>
+                >
+                <div class="flex-grow">
+                  <span
+                    [routerLink]="['/profile', comment.username]"
+                    class="font-extrabold text-slate-900 dark:text-white hover:underline cursor-pointer mr-1.5"
+                  >{{ comment.username }}</span>
+                  <span class="text-slate-600 dark:text-slate-300">{{ comment.text }}</span>
+                  <div class="flex items-center gap-3 mt-1 text-[10px] text-slate-400 font-bold">
+                    <span>{{ comment.createdAt }}</span>
+                    <button
+                      (click)="toggleCommentLike(comment.id)"
+                      class="hover:text-red-500 transition-colors"
+                      [class.text-red-500]="comment.hasLiked"
+                    >{{ comment.likesCount ? comment.likesCount + ' likes' : 'Like' }}</button>
+                    <button 
+                      (click)="setReplyTo(comment)"
+                      class="hover:text-violet-500 transition-colors"
+                    >Reply</button>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Replies -->
+              <div *ngIf="comment.replies && comment.replies.length > 0" class="ml-10 space-y-3 mt-3">
+                <div *ngFor="let reply of comment.replies" class="text-xs flex items-start gap-2.5">
+                  <img
+                    [src]="reply.avatarUrl || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150'"
+                    class="w-6 h-6 rounded-full object-cover flex-shrink-0 cursor-pointer"
+                    [routerLink]="['/profile', reply.username]"
+                  >
+                  <div class="flex-grow">
+                    <span
+                      [routerLink]="['/profile', reply.username]"
+                      class="font-extrabold text-slate-900 dark:text-white hover:underline cursor-pointer mr-1.5"
+                    >{{ reply.username }}</span>
+                    <span class="text-slate-600 dark:text-slate-300">{{ reply.text }}</span>
+                    <div class="flex items-center gap-3 mt-1 text-[10px] text-slate-400 font-bold">
+                      <span>{{ reply.createdAt }}</span>
+                      <button
+                        (click)="toggleCommentLike(reply.id)"
+                        class="hover:text-red-500 transition-colors"
+                        [class.text-red-500]="reply.hasLiked"
+                      >{{ reply.likesCount ? reply.likesCount + ' likes' : 'Like' }}</button>
+                    </div>
+                  </div>
                 </div>
               </div>
             </div>
+
+          </div>
 
             <!-- No comments yet -->
             <p *ngIf="p.comments.length === 0 && p.commentsCount === 0" class="text-xs text-slate-400 dark:text-slate-500 text-center py-2">
@@ -170,11 +209,15 @@ import { Post } from 'src/app/core/models/social.model';
             </p>
 
             <!-- New Comment Box -->
+            <div *ngIf="replyingTo()" class="text-[10px] text-slate-500 dark:text-slate-400 flex items-center justify-between pb-1 px-1">
+              <span>Replying to <span class="font-bold">{{ replyingTo()!.username }}</span></span>
+              <button (click)="cancelReply()" class="hover:text-slate-700 dark:hover:text-slate-200">Cancel</button>
+            </div>
             <div class="flex items-center gap-2 mt-2 pt-2 border-t border-slate-100 dark:border-slate-700/60">
               <input
                 type="text"
                 [(ngModel)]="newComment"
-                placeholder="Add a comment..."
+                [placeholder]="replyingTo() ? 'Add a reply...' : 'Add a comment...'"
                 (keyup.enter)="submitComment()"
                 class="flex-grow bg-slate-50 dark:bg-slate-900/60 text-xs rounded-xl px-3 py-2 text-slate-800 dark:text-white border-0 focus:ring-1 focus:ring-violet-500 outline-none placeholder-slate-400"
               >
@@ -185,9 +228,7 @@ import { Post } from 'src/app/core/models/social.model';
               >Post</button>
             </div>
           </div>
-        </div>
       </div>
-    </div>
   `,
   changeDetection: ChangeDetectionStrategy.OnPush
 })
@@ -199,6 +240,7 @@ export class PostDetailComponent implements OnInit {
   post = signal<Post | null>(null);
   isLoading = signal(true);
   newComment = '';
+  replyingTo = signal<any | null>(null);
 
   ngOnInit() {
     const id = this.route.snapshot.paramMap.get('id')!;
@@ -270,10 +312,27 @@ export class PostDetailComponent implements OnInit {
     });
   }
 
+  setReplyTo(comment: any) {
+    this.replyingTo.set(comment);
+    this.newComment = '';
+  }
+
+  cancelReply() {
+    this.replyingTo.set(null);
+    this.newComment = '';
+  }
+
   submitComment() {
     const p = this.post();
     if (!p || !this.newComment.trim()) return;
-    this.mockData.addComment(p.id, this.newComment.trim());
+    
+    if (this.replyingTo()) {
+      this.mockData.addCommentReply(p.id, this.replyingTo().id, this.newComment.trim());
+      this.replyingTo.set(null);
+    } else {
+      this.mockData.addComment(p.id, this.newComment.trim());
+    }
+    
     this.newComment = '';
     // Reload comments after short delay
     setTimeout(() => this.mockData.loadComments(p.id), 500);

@@ -123,8 +123,14 @@ interface ReplyTarget {
           </button>
         </div>
 
+        <!-- Text-only Caption (Top) -->
+        <div *ngIf="!post.imageUrl" class="px-5 pb-3">
+          <p class="text-[15px] text-slate-800 dark:text-slate-200 leading-relaxed whitespace-pre-wrap">{{ post.caption }}</p>
+        </div>
+
         <!-- Post Image with Double-Click Heart Animation -->
         <div 
+          *ngIf="post.imageUrl"
           (dblclick)="onPostDblClick(post.id)"
           class="aspect-square relative overflow-hidden bg-slate-100 dark:bg-slate-900 cursor-pointer select-none group"
         >
@@ -208,7 +214,7 @@ interface ReplyTarget {
           </p>
 
           <!-- Caption -->
-          <p class="text-sm text-slate-800 dark:text-slate-200 leading-relaxed mb-2">
+          <p *ngIf="post.imageUrl" class="text-sm text-slate-800 dark:text-slate-200 leading-relaxed mb-2">
             <span 
               [routerLink]="['/profile', post.user.username]"
               class="font-extrabold text-slate-900 dark:text-white mr-1.5 hover:underline cursor-pointer"
@@ -352,7 +358,7 @@ interface ReplyTarget {
                 <input 
                   type="text" 
                   [(ngModel)]="newComments[post.id]"
-                  placeholder="Add a comment..."
+                  [placeholder]="replyingTo()?.postId === post.id ? 'Add a reply...' : 'Add a comment...'"
                   (keyup.enter)="submitComment(post.id)"
                   class="flex-grow bg-slate-50 dark:bg-slate-900/60 text-xs rounded-xl px-3 py-2 text-slate-800 dark:text-white border-0 focus:ring-1 focus:ring-violet-500 outline-none placeholder-slate-400"
                 >
@@ -564,10 +570,14 @@ export class FeedComponent {
   submitComment(postId: string) {
     const text = this.newComments[postId];
     if (text && text.trim()) {
-      // Backend stores comments flat (no parent_id), so a reply is just a normal
-      // comment whose text already carries the "@username " mention prefix
-      // (added by setReplyTarget). This way replies persist across reloads.
-      this.mockData.addComment(postId, text.trim());
+      const target = this.replyingTo();
+      if (target && target.postId === postId) {
+        // It's a reply
+        this.mockData.addCommentReply(postId, target.commentId, text.trim());
+      } else {
+        // It's a root comment
+        this.mockData.addComment(postId, text.trim());
+      }
       this.replyingTo.set(null);
       this.newComments[postId] = '';
 

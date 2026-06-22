@@ -149,7 +149,10 @@ import { environment } from 'src/environments/environment';
             (click)="openPostDetail(post)"
             class="aspect-square rounded-2xl overflow-hidden relative group shadow-sm hover:shadow-lg transition-all bg-slate-100 dark:bg-slate-900 border border-slate-100 dark:border-slate-700 cursor-pointer"
           >
-            <img [src]="post.imageUrl" class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" alt="user post">
+            <img *ngIf="post.imageUrl" [src]="post.imageUrl" class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" alt="user post">
+            <div *ngIf="!post.imageUrl" class="w-full h-full p-4 flex items-center justify-center bg-violet-50 dark:bg-violet-900/20 text-center">
+              <span class="text-sm font-medium text-slate-700 dark:text-slate-300 line-clamp-4 break-words w-full">{{ post.caption }}</span>
+            </div>
             <!-- Hover overlay -->
             <div class="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-4 text-white font-bold text-sm">
               <span>❤️ {{ post.likes }}</span>
@@ -181,7 +184,10 @@ import { environment } from 'src/environments/environment';
               (click)="openPostDetail(post)"
               class="aspect-square rounded-2xl overflow-hidden relative group shadow-sm hover:shadow-lg transition-all bg-slate-100 dark:bg-slate-900 border border-slate-100 dark:border-slate-700 cursor-pointer"
             >
-              <img [src]="post.imageUrl" class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" alt="saved post">
+              <img *ngIf="post.imageUrl" [src]="post.imageUrl" class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" alt="saved post">
+              <div *ngIf="!post.imageUrl" class="w-full h-full p-4 flex items-center justify-center bg-violet-50 dark:bg-violet-900/20 text-center">
+                <span class="text-sm font-medium text-slate-700 dark:text-slate-300 line-clamp-4 break-words w-full">{{ post.caption }}</span>
+              </div>
               <div class="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-4 text-white font-bold text-sm">
                 <span>❤️ {{ post.likes }}</span>
                 <span>💬 {{ post.commentsCount || post.comments.length }}</span>
@@ -287,7 +293,7 @@ import { environment } from 'src/environments/environment';
         (click)="$event.stopPropagation()"
       >
         <!-- Left: Image -->
-        <div class="md:w-1/2 bg-black flex items-center justify-center flex-shrink-0 max-h-[40vh] md:max-h-none">
+        <div *ngIf="selectedPost()!.imageUrl" class="md:w-1/2 bg-black flex items-center justify-center flex-shrink-0 max-h-[40vh] md:max-h-none">
           <img 
             [src]="selectedPost()!.imageUrl" 
             alt="Post image"
@@ -296,7 +302,10 @@ import { environment } from 'src/environments/environment';
         </div>
 
         <!-- Right: Details -->
-        <div class="md:w-1/2 flex flex-col max-h-[50vh] md:max-h-[90vh]">
+        <div 
+          class="flex flex-col max-h-[50vh] md:max-h-[90vh]"
+          [ngClass]="selectedPost()!.imageUrl ? 'md:w-1/2' : 'md:w-full'"
+        >
           <!-- Post Header -->
           <div class="flex items-center gap-3 p-4 border-b border-slate-100 dark:border-slate-700 flex-shrink-0">
             <img 

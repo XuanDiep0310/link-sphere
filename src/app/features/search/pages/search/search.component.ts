@@ -133,8 +133,9 @@ import { Subject, debounceTime, distinctUntilChanged } from 'rxjs';
               *ngFor="let post of searchedPosts()"
               class="bg-white dark:bg-slate-800 p-4 rounded-2xl border border-slate-100 dark:border-slate-700/60 flex gap-4 hover:shadow-md transition-shadow"
             >
-              <div class="w-20 h-20 bg-slate-100 rounded-xl overflow-hidden flex-shrink-0">
-                <img [src]="post.imageUrl" class="w-full h-full object-cover" alt="post preview">
+              <div class="w-20 h-20 bg-slate-100 dark:bg-slate-900 rounded-xl overflow-hidden flex-shrink-0 flex items-center justify-center p-1 border border-slate-200 dark:border-slate-700 text-center">
+                <img *ngIf="post.imageUrl" [src]="post.imageUrl" class="w-full h-full object-cover rounded-lg" alt="post preview">
+                <span *ngIf="!post.imageUrl" class="text-[9px] font-bold text-slate-500 dark:text-slate-400 line-clamp-4 break-words w-full leading-tight">{{ post.caption }}</span>
               </div>
               <div class="flex-grow flex flex-col justify-between py-1">
                 <div>

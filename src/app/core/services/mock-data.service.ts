@@ -480,6 +480,49 @@ export class SocialService {
             }
             return next;
           });
+
+          // Fetch replies for each comment
+          mappedComments.forEach(c => {
+            this.loadReplies(postId, c.id);
+          });
+        }
+      },
+      error: () => {}
+    });
+  }
+
+  loadReplies(postId: string, commentId: string) {
+    this.http.get<{ success: boolean; data?: any[] }>(`${environment.apiUrl}/v1/posts/${postId}/comments/${commentId}/replies/`).subscribe({
+      next: (res) => {
+        if (res && res.success && res.data) {
+          const mappedReplies: Comment[] = res.data.map((c: any) => ({
+            id: String(c.id),
+            username: c.author?.username || 'unknown',
+            avatarUrl: c.author?.avatar || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150',
+            text: c.content || '',
+            createdAt: this.formatTimeAgo(c.created_at),
+            likesCount: 0,
+            hasLiked: false,
+            replies: []
+          }));
+
+          const updatePost = (p: Post) => {
+            if (p.id !== postId) return p;
+            const newComments = p.comments.map(c => 
+              c.id === commentId ? { ...c, replies: mappedReplies } : c
+            );
+            return { ...p, comments: newComments };
+          };
+
+          this.posts.update(list => list.map(updatePost));
+          this.allPosts.update(list => list.map(updatePost));
+          this.userPostsMap.update(map => {
+            const next = { ...map };
+            for (const uname in next) {
+              next[uname] = next[uname].map(updatePost);
+            }
+            return next;
+          });
         }
       },
       error: () => {}
@@ -597,8 +640,13 @@ export class SocialService {
 
     // Also post to API (as a regular comment since API doesn't support nesting)
     this.http.post<any>(`${environment.apiUrl}/v1/posts/${postId}/comments/`, {
-      content: text
+      content: text,
+      parentId: Number(parentCommentId)
     }).subscribe({
+      next: () => {
+        // Reload replies from backend to get real IDs
+        this.loadReplies(postId, parentCommentId);
+      },
       error: () => this.showToast('Failed to post reply. Please try again.')
     });
   }
@@ -833,7 +881,7 @@ export class SocialService {
         followingCount: item.author.following_count || 0,
         bio: item.author.bio
       },
-      imageUrl: item.image || 'https://images.unsplash.com/photo-1509042239860-f550ce710b93?w=800',
+      imageUrl: item.image || null,
       caption: item.content || '',
       likes: item.likes_count || 0,
       hasLiked: item.is_liked === 'true' || item.is_liked === true || String(item.is_liked).toLowerCase() === 'true' || this.likedIds().has(String(item.id)),
