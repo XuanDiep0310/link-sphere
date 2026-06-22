@@ -18,6 +18,11 @@ export class LoginComponent {
   
   isLoading = signal(false);
   errorMessage = signal<string | null>(null);
+  showPassword = signal(false);
+
+  togglePasswordVisibility() {
+    this.showPassword.set(!this.showPassword());
+  }
 
   loginForm = this.fb.group({
     username: ['', [Validators.required]],

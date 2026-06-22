@@ -16,7 +16,9 @@ interface ReplyTarget {
   standalone: true,
   imports: [CommonModule, FormsModule, RouterLink],
   template: `
-    <div class="max-w-xl mx-auto space-y-6 sm:py-4">
+    <div class="max-w-[1000px] mx-auto flex justify-center gap-8 sm:py-4">
+      <!-- LEFT COLUMN (Feed) -->
+      <div class="w-full max-w-[630px] space-y-6">
       <!-- Feed Tabs -->
       <div class="bg-slate-100 dark:bg-slate-800/60 p-1 rounded-2xl flex gap-1 border border-slate-100 dark:border-slate-700">
         <button
@@ -431,6 +433,40 @@ interface ReplyTarget {
       </div>
     </div>
 
+
+      <!-- RIGHT COLUMN (Suggestions) -->
+      <div class="hidden lg:block w-[320px] shrink-0 pt-4">
+        <!-- Current User Profile snippet -->
+        <div class="flex items-center gap-4 mb-6">
+          <img [src]="currentUser().avatarUrl || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150'" alt="Avatar" class="w-12 h-12 rounded-full object-cover cursor-pointer hover:scale-105 transition-transform" [routerLink]="['/profile']">
+          <div class="flex flex-col flex-grow">
+            <a routerLink="/profile" class="font-bold text-sm text-slate-900 dark:text-white hover:text-violet-500 cursor-pointer">{{ currentUser().username }}</a>
+            <span class="text-[13px] text-slate-500">{{ currentUser().bio || 'New member' }}</span>
+          </div>
+          <a routerLink="/profile" class="text-xs font-bold text-violet-500 hover:text-violet-700">Switch</a>
+        </div>
+        
+        <div class="flex items-center justify-between mb-4">
+          <span class="text-sm font-bold text-slate-500">Suggested for you</span>
+          <a routerLink="/search" class="text-xs font-bold text-slate-800 dark:text-white hover:text-violet-500">See all</a>
+        </div>
+
+        <!-- Suggested Users List -->
+        <div class="space-y-4">
+          <div *ngFor="let u of suggestedUsers()" class="flex items-center gap-3">
+             <img [src]="u.avatarUrl || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150'" class="w-10 h-10 rounded-full object-cover cursor-pointer hover:scale-105 transition-transform" [routerLink]="['/profile', u.username]">
+             <div class="flex flex-col flex-grow">
+                <a [routerLink]="['/profile', u.username]" class="font-bold text-sm text-slate-900 dark:text-white hover:text-violet-500 cursor-pointer">{{ u.username }}</a>
+                <span class="text-[11px] text-slate-500">Suggested for you</span>
+             </div>
+             <button (click)="toggleFollowUser(u.username)" class="text-xs font-bold text-violet-500 hover:text-violet-700">
+               {{ mockData.followedUsernames().has(u.username) ? 'Following' : 'Follow' }}
+             </button>
+          </div>
+        </div>
+      </div>
+
+    </div>
     <!-- Toast Alerts popup -->
     <div 
       *ngIf="toastMessage()" 
@@ -460,7 +496,8 @@ interface ReplyTarget {
   changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class FeedComponent {
-  private mockData = inject(MockDataService);
+  suggestedUsers = signal<any[]>([]);
+  mockData = inject(MockDataService);
 
   posts = this.mockData.posts;
   currentUser = this.mockData.currentUser;
@@ -469,6 +506,15 @@ export class FeedComponent {
 
   constructor() {
     this.mockData.loadFeed();
+    this.mockData.searchUsers('').subscribe(users => {
+      // Pick 5 users not currently followed and not the current user
+      const filtered = users.filter(u => u.username !== this.currentUser().username && !this.mockData.followedUsernames().has(u.username)).slice(0, 5);
+      this.suggestedUsers.set(filtered);
+    });
+  }
+
+  toggleFollowUser(username: string) {
+    this.mockData.toggleFollowByUsername(username);
   }
 
   switchFeedTab(tab: 'following' | 'forYou') {

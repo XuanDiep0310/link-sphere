@@ -242,14 +242,14 @@ import { environment } from 'src/environments/environment';
             class="w-20 h-20 rounded-full object-cover border-4 border-violet-100 dark:border-violet-900"
             alt="avatar preview"
           >
-          <div class="w-full space-y-1">
-            <label class="text-xs font-bold text-slate-600 dark:text-slate-400">Avatar URL</label>
-            <input
-              type="text"
-              [(ngModel)]="editAvatarUrl"
-              placeholder="https://..."
-              class="w-full bg-slate-50 dark:bg-slate-700/50 rounded-2xl px-4 py-2.5 text-sm text-slate-800 dark:text-white placeholder-slate-400 border-0 focus:ring-2 focus:ring-violet-500 outline-none transition-all"
+          <div class="w-full space-y-1 text-center mt-2">
+            <input type="file" #avatarInput (change)="onAvatarSelected($event)" accept="image/*" class="hidden">
+            <button 
+              (click)="avatarInput.click()" 
+              class="px-4 py-2 rounded-xl bg-violet-50 text-violet-600 dark:bg-violet-900/30 dark:text-violet-400 font-bold text-xs hover:bg-violet-100 dark:hover:bg-violet-900/50 transition-colors"
             >
+              Change Avatar
+            </button>
           </div>
         </div>
 
@@ -552,10 +552,25 @@ export class ProfileComponent {
     this.authService.logout();
   }
 
+  selectedAvatarFile = signal<File | null>(null);
+
+  onAvatarSelected(event: Event) {
+    const file = (event.target as HTMLInputElement).files?.[0];
+    if (file) {
+      this.selectedAvatarFile.set(file);
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        this.editAvatarUrl = e.target?.result as string;
+      };
+      reader.readAsDataURL(file);
+    }
+  }
+
   openEditProfile() {
     const user = this.profileUser();
     this.editBio = user.bio || '';
     this.editAvatarUrl = user.avatarUrl || '';
+    this.selectedAvatarFile.set(null);
     this.showEditProfile.set(true);
   }
 
@@ -564,7 +579,7 @@ export class ProfileComponent {
   }
 
   saveProfile() {
-    this.mockData.updateProfile(this.editBio.trim(), this.editAvatarUrl.trim());
+    this.mockData.updateProfile(this.editBio.trim(), this.selectedAvatarFile());
     this.showEditProfile.set(false);
   }
 

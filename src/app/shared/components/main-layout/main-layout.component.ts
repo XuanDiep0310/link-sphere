@@ -11,149 +11,135 @@ import { ChatService } from 'src/app/features/chat/services/chat.service';
   standalone: true,
   imports: [CommonModule, RouterOutlet, RouterLink, RouterLinkActive, FormsModule],
   template: `
-    <div class="min-h-screen bg-slate-50 dark:bg-slate-900 flex flex-col">
-      <!-- Top Navigation Header -->
-      <header class="bg-white dark:bg-slate-800 border-b border-slate-200 dark:border-slate-700 sticky top-0 z-40 transition-colors duration-300">
-        <div class="max-w-5xl mx-auto px-4 h-16 flex items-center justify-between">
-          <!-- Logo -->
-          <a routerLink="/" class="flex items-center gap-2.5 group">
-            <div class="w-9 h-9 bg-violet-600 rounded-xl flex items-center justify-center text-white font-extrabold text-lg shadow-md shadow-violet-500/20 group-hover:scale-105 transition-all">
-              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2.5" stroke="currentColor" class="w-5 h-5">
-                <path stroke-linecap="round" stroke-linejoin="round" d="M13.19 8.688a4.5 4.5 0 011.242 7.244l-4.5 4.5a4.5 4.5 0 01-6.364-6.364l1.757-1.757m13.35-.622l1.757-1.757a4.5 4.5 0 00-6.364-6.364l-4.5 4.5a4.5 4.5 0 001.242 7.244" />
-              </svg>
-            </div>
-            <span class="font-extrabold text-xl tracking-tight text-slate-800 dark:text-white group-hover:text-violet-600 transition-colors">Link Sphere</span>
+    <div class="min-h-screen bg-slate-50 dark:bg-slate-950 flex">
+      
+      <!-- DESKTOP LEFT SIDEBAR (Hidden on mobile) -->
+      <aside class="hidden md:flex flex-col w-20 lg:w-64 fixed inset-y-0 left-0 bg-white dark:bg-slate-900 border-r border-slate-200 dark:border-slate-800 z-40 transition-all duration-300 overflow-y-auto">
+        <!-- Logo -->
+        <a routerLink="/" class="flex items-center gap-3 p-4 pt-8 pb-8 group">
+          <div class="w-10 h-10 bg-violet-600 rounded-xl flex items-center justify-center text-white font-extrabold text-xl shadow-md shadow-violet-500/20 group-hover:scale-105 transition-all flex-shrink-0">
+            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2.5" stroke="currentColor" class="w-6 h-6">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M13.19 8.688a4.5 4.5 0 011.242 7.244l-4.5 4.5a4.5 4.5 0 01-6.364-6.364l1.757-1.757m13.35-.622l1.757-1.757a4.5 4.5 0 00-6.364-6.364l-4.5 4.5a4.5 4.5 0 001.242 7.244" />
+            </svg>
+          </div>
+          <span class="font-extrabold text-2xl tracking-tight text-slate-800 dark:text-white group-hover:text-violet-600 transition-colors hidden lg:block" style="font-family: 'Pacifico', cursive; letter-spacing: 1px;">Link Sphere</span>
+        </a>
+
+        <!-- Navigation Links -->
+        <nav class="flex-1 px-3 space-y-2">
+          <!-- Home -->
+          <a routerLink="/" [routerLinkActiveOptions]="{exact: true}" routerLinkActive="font-bold text-slate-900 dark:text-white" class="flex items-center gap-4 p-3 rounded-xl text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 transition-all group">
+            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="w-7 h-7 group-hover:scale-110 transition-transform"><path stroke-linecap="round" stroke-linejoin="round" d="M2.25 12l8.954-8.955c.44-.439 1.152-.439 1.591 0L21.75 12M4.5 9.75v10.125c0 .621.504 1.125 1.125 1.125H9.75v-4.875c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125V21h4.125c.621 0 1.125-.504 1.125-1.125V9.75M8.25 21h8.25" /></svg>
+            <span class="hidden lg:block text-[16px]">Home</span>
           </a>
 
-          <!-- Right Navigation Icons -->
-          <nav class="flex items-center gap-2 sm:gap-4">
-            <!-- Home -->
-            <a 
-              routerLink="/" 
-              [routerLinkActiveOptions]="{exact: true}"
-              routerLinkActive="text-violet-600 bg-violet-50 dark:bg-violet-950/40"
-              class="p-2 rounded-xl text-slate-600 dark:text-slate-300 hover:text-violet-600 hover:bg-slate-50 dark:hover:bg-slate-700/50 transition-all"
-              title="Home"
-            >
-              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="w-6 h-6">
-                <path stroke-linecap="round" stroke-linejoin="round" d="M2.25 12l8.954-8.955c.44-.439 1.152-.439 1.591 0L21.75 12M4.5 9.75v10.125c0 .621.504 1.125 1.125 1.125H9.75v-4.875c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125V21h4.125c.621 0 1.125-.504 1.125-1.125V9.75M8.25 21h8.25" />
-              </svg>
-            </a>
+          <!-- Search -->
+          <a routerLink="/search" routerLinkActive="font-bold text-slate-900 dark:text-white" class="flex items-center gap-4 p-3 rounded-xl text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 transition-all group">
+            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="w-7 h-7 group-hover:scale-110 transition-transform"><path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-5.197-5.197m0 0A7.5 7.5 0 105.196 5.196a7.5 7.5 0 0010.604 10.604z" /></svg>
+            <span class="hidden lg:block text-[16px]">Search</span>
+          </a>
 
-            <!-- Search -->
-            <a 
-              routerLink="/search" 
-              routerLinkActive="text-violet-600 bg-violet-50 dark:bg-violet-950/40"
-              class="p-2 rounded-xl text-slate-600 dark:text-slate-300 hover:text-violet-600 hover:bg-slate-50 dark:hover:bg-slate-700/50 transition-all"
-              title="Search"
-            >
-              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="w-6 h-6">
-                <path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-5.197-5.197m0 0A7.5 7.5 0 105.196 5.196a7.5 7.5 0 0010.604 10.604z" />
-              </svg>
-            </a>
+          <!-- Explore -->
+          <a routerLink="/explore" routerLinkActive="font-bold text-slate-900 dark:text-white" class="flex items-center gap-4 p-3 rounded-xl text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 transition-all group">
+            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="w-7 h-7 group-hover:scale-110 transition-transform"><path stroke-linecap="round" stroke-linejoin="round" d="M12 21a9.004 9.004 0 008.716-6.747M12 21a9.004 9.004 0 01-8.716-6.747M12 21c2.485 0 4.5-4.03 4.5-9S14.485 3 12 3m0 18c-2.485 0-4.5-4.03-4.5-9s2.015-9 4.5-9 M3 9.75h18" /></svg>
+            <span class="hidden lg:block text-[16px]">Explore</span>
+          </a>
 
-            <!-- Explore -->
-            <a 
-              routerLink="/explore" 
-              routerLinkActive="text-violet-600 bg-violet-50 dark:bg-violet-950/40"
-              class="p-2 rounded-xl text-slate-600 dark:text-slate-300 hover:text-violet-600 hover:bg-slate-50 dark:hover:bg-slate-700/50 transition-all"
-              title="Explore"
-            >
-              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="w-6 h-6">
-                <path stroke-linecap="round" stroke-linejoin="round" d="M12 21a9.004 9.004 0 008.716-6.747M12 21a9.004 9.004 0 01-8.716-6.747M12 21c2.485 0 4.5-4.03 4.5-9S14.485 3 12 3m0 18c-2.485 0-4.5-4.03-4.5-9s2.015-9 4.5-9 M3 9.75h18" />
-              </svg>
-            </a>
+          <!-- Messages -->
+          <a routerLink="/chat" routerLinkActive="font-bold text-slate-900 dark:text-white" class="flex items-center gap-4 p-3 rounded-xl text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 transition-all group relative">
+            <div class="relative">
+              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="w-7 h-7 group-hover:scale-110 transition-transform"><path stroke-linecap="round" stroke-linejoin="round" d="M8.625 12a.375.375 0 11-.75 0 .375.375 0 01.75 0zm0 0H8.25m4.125 0a.375.375 0 11-.75 0 .375.375 0 01.75 0zm0 0H12m4.125 0a.375.375 0 11-.75 0 .375.375 0 01.75 0zm0 0h-.375M21 12c0 4.556-4.03 8.25-9 8.25a9.764 9.764 0 01-2.555-.337A5.972 5.972 0 015.41 20.97a5.969 5.969 0 01-.474-.065 4.48 4.48 0 00.978-2.025c.09-.457-.133-.901-.467-1.226C3.93 16.178 3 14.189 3 12c0-4.556 4.03-8.25 9-8.25s9 3.694 9 8.25z" /></svg>
+              <span *ngIf="chatService.totalUnreadCount() > 0" class="absolute -top-1 -right-1 bg-red-500 text-white text-[10px] font-bold min-w-[18px] h-[18px] flex items-center justify-center rounded-full border-2 border-white dark:border-slate-900 px-0.5">{{ chatService.totalUnreadCount() > 99 ? '99+' : chatService.totalUnreadCount() }}</span>
+            </div>
+            <span class="hidden lg:block text-[16px]">Messages</span>
+          </a>
 
-            <!-- Create Post -->
-            <button 
-              (click)="openCreateModal()"
-              [ngClass]="isCreateModalOpen() ? 'text-violet-600 bg-violet-50 dark:bg-violet-950/40' : 'text-slate-600 dark:text-slate-300'"
-              class="p-2 rounded-xl hover:text-violet-600 hover:bg-slate-50 dark:hover:bg-slate-700/50 transition-all"
-              title="Create Post"
-            >
-              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="w-6 h-6">
-                <path stroke-linecap="round" stroke-linejoin="round" d="M12 9v6m3-3H9m12 0a9 9 0 11-18 0 9 9 0 0118 0z" />
-              </svg>
-            </button>
+          <!-- Notifications -->
+          <a routerLink="/notifications" routerLinkActive="font-bold text-slate-900 dark:text-white" class="flex items-center gap-4 p-3 rounded-xl text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 transition-all group relative">
+            <div class="relative">
+              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="w-7 h-7 group-hover:scale-110 transition-transform"><path stroke-linecap="round" stroke-linejoin="round" d="M21 8.25c0-2.485-2.099-4.5-4.688-4.5-1.935 0-3.597 1.126-4.312 2.733-.715-1.607-2.377-2.733-4.313-2.733C5.1 3.75 3 5.765 3 8.25c0 7.22 9 12 9 12s9-4.78 9-12z" /></svg>
+              <span *ngIf="unreadCount() > 0" class="absolute -top-1 -right-1 bg-red-500 text-white text-[10px] font-bold w-[18px] h-[18px] flex items-center justify-center rounded-full border-2 border-white dark:border-slate-900">{{ unreadCount() > 9 ? '9+' : unreadCount() }}</span>
+            </div>
+            <span class="hidden lg:block text-[16px]">Notifications</span>
+          </a>
 
-            <!-- Notifications -->
-            <a 
-              routerLink="/notifications" 
-              routerLinkActive="text-violet-600 bg-violet-50 dark:bg-violet-950/40"
-              class="p-2 rounded-xl text-slate-600 dark:text-slate-300 hover:text-violet-600 hover:bg-slate-50 dark:hover:bg-slate-700/50 transition-all relative"
-              title="Notifications"
-            >
-              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="w-6 h-6">
-                <path stroke-linecap="round" stroke-linejoin="round" d="M21 8.25c0-2.485-2.099-4.5-4.688-4.5-1.935 0-3.597 1.126-4.312 2.733-.715-1.607-2.377-2.733-4.313-2.733C5.1 3.75 3 5.765 3 8.25c0 7.22 9 12 9 12s9-4.78 9-12z" />
-              </svg>
-              <!-- Notification Badge -->
-              <span 
-                *ngIf="unreadCount() > 0"
-                class="absolute top-1 right-1 bg-red-500 text-white text-[10px] font-bold w-4 h-4 flex items-center justify-center rounded-full border border-white dark:border-slate-800"
-              >
-                {{ unreadCount() > 9 ? '9+' : unreadCount() }}
-              </span>
-            </a>
+          <!-- Create -->
+          <button (click)="openCreateModal()" class="w-full flex items-center gap-4 p-3 rounded-xl text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 transition-all group">
+            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="w-7 h-7 group-hover:scale-110 transition-transform"><path stroke-linecap="round" stroke-linejoin="round" d="M12 9v6m3-3H9m12 0a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+            <span class="hidden lg:block text-[16px]">Create</span>
+          </button>
 
-            <!-- Messages -->
-            <a 
-              routerLink="/chat" 
-              routerLinkActive="text-violet-600 bg-violet-50 dark:bg-violet-950/40"
-              class="p-2 rounded-xl text-slate-600 dark:text-slate-300 hover:text-violet-600 hover:bg-slate-50 dark:hover:bg-slate-700/50 transition-all relative"
-              title="Messages"
-            >
-              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="w-6 h-6">
-                <path stroke-linecap="round" stroke-linejoin="round" d="M8.625 12a.375.375 0 11-.75 0 .375.375 0 01.75 0zm0 0H8.25m4.125 0a.375.375 0 11-.75 0 .375.375 0 01.75 0zm0 0H12m4.125 0a.375.375 0 11-.75 0 .375.375 0 01.75 0zm0 0h-.375M21 12c0 4.556-4.03 8.25-9 8.25a9.764 9.764 0 01-2.555-.337A5.972 5.972 0 015.41 20.97a5.969 5.969 0 01-.474-.065 4.48 4.48 0 00.978-2.025c.09-.457-.133-.901-.467-1.226C3.93 16.178 3 14.189 3 12c0-4.556 4.03-8.25 9-8.25s9 3.694 9 8.25z" />
-              </svg>
-              <!-- Unread Messages Badge -->
-              <span 
-                *ngIf="chatService.totalUnreadCount() > 0"
-                class="absolute top-1 right-1 bg-red-500 text-white text-[10px] font-bold min-w-[16px] h-4 flex items-center justify-center rounded-full border border-white dark:border-slate-800 px-0.5"
-              >
-                {{ chatService.totalUnreadCount() > 99 ? '99+' : chatService.totalUnreadCount() }}
-              </span>
-            </a>
+          <!-- Profile -->
+          <a routerLink="/profile" routerLinkActive="font-bold text-slate-900 dark:text-white" class="flex items-center gap-4 p-3 rounded-xl text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 transition-all group">
+            <div class="w-7 h-7 rounded-full overflow-hidden border border-slate-200 dark:border-slate-700 group-hover:scale-110 transition-transform flex-shrink-0">
+              <img [src]="currentUser().avatarUrl || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150'" alt="Avatar" class="w-full h-full object-cover">
+            </div>
+            <span class="hidden lg:block text-[16px]">Profile</span>
+          </a>
+        </nav>
 
-            <!-- Dark Mode Toggle -->
-            <button
-              (click)="toggleDarkMode()"
-              class="p-2 rounded-xl text-slate-600 dark:text-slate-300 hover:text-violet-600 hover:bg-slate-50 dark:hover:bg-slate-700/50 transition-all"
-              [title]="isDarkMode() ? 'Switch to Light Mode' : 'Switch to Dark Mode'"
-            >
-              <!-- Sun icon (shown in dark mode) -->
-              <svg *ngIf="isDarkMode()" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="w-6 h-6">
-                <path stroke-linecap="round" stroke-linejoin="round" d="M12 3v2.25m6.364.386l-1.591 1.591M21 12h-2.25m-.386 6.364l-1.591-1.591M12 18.75V21m-4.773-4.227l-1.591 1.591M5.25 12H3m4.227-4.773L5.636 5.636M15.75 12a3.75 3.75 0 11-7.5 0 3.75 3.75 0 017.5 0z" />
-              </svg>
-              <!-- Moon icon (shown in light mode) -->
-              <svg *ngIf="!isDarkMode()" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="w-6 h-6">
-                <path stroke-linecap="round" stroke-linejoin="round" d="M21.752 15.002A9.718 9.718 0 0118 15.75c-5.385 0-9.75-4.365-9.75-9.75 0-1.33.266-2.597.748-3.752A9.753 9.753 0 003 11.25C3 16.635 7.365 21 12.75 21a9.753 9.753 0 009.002-5.998z" />
-              </svg>
-            </button>
+        <!-- Sidebar Footer -->
+        <div class="p-4 mt-auto mb-2 px-3">
+          <!-- Dark Mode Toggle -->
+          <button (click)="toggleDarkMode()" class="w-full flex items-center gap-4 p-3 rounded-xl text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 transition-all group">
+            <svg *ngIf="isDarkMode()" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="w-7 h-7 group-hover:scale-110 transition-transform"><path stroke-linecap="round" stroke-linejoin="round" d="M12 3v2.25m6.364.386l-1.591 1.591M21 12h-2.25m-.386 6.364l-1.591-1.591M12 18.75V21m-4.773-4.227l-1.591 1.591M5.25 12H3m4.227-4.773L5.636 5.636M15.75 12a3.75 3.75 0 11-7.5 0 3.75 3.75 0 017.5 0z" /></svg>
+            <svg *ngIf="!isDarkMode()" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="w-7 h-7 group-hover:scale-110 transition-transform"><path stroke-linecap="round" stroke-linejoin="round" d="M21.752 15.002A9.718 9.718 0 0118 15.75c-5.385 0-9.75-4.365-9.75-9.75 0-1.33.266-2.597.748-3.752A9.753 9.753 0 003 11.25C3 16.635 7.365 21 12.75 21a9.753 9.753 0 009.002-5.998z" /></svg>
+            <span class="hidden lg:block text-[16px]">Theme</span>
+          </button>
+        </div>
+      </aside>
 
-            <!-- Divider -->
-            <div class="h-6 w-[1px] bg-slate-200 dark:bg-slate-700 mx-1"></div>
+      <!-- MOBILE TOP HEADER (Hidden on Desktop) -->
+      <header class="md:hidden fixed top-0 inset-x-0 h-14 bg-white dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800 z-40 flex items-center justify-between px-4">
+        <!-- Create Post (+) Left -->
+        <button (click)="openCreateModal()" class="p-1 text-slate-800 dark:text-white">
+          <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="w-7 h-7"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15" /></svg>
+        </button>
 
-            <!-- Profile Avatar -->
-            <a 
-              routerLink="/profile" 
-              routerLinkActive="ring-2 ring-violet-600"
-              class="w-8 h-8 rounded-full overflow-hidden block hover:scale-105 transition-transform"
-              title="Profile"
-            >
-              <img 
-                [src]="currentUser().avatarUrl || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150'" 
-                alt="Profile Avatar"
-                class="w-full h-full object-cover"
-              >
-            </a>
-          </nav>
+        <!-- Center Logo Text -->
+        <span class="font-bold text-xl text-slate-900 dark:text-white" style="font-family: 'Pacifico', cursive;">Link Sphere</span>
+
+        <!-- Notifications & Dark mode Right -->
+        <div class="flex items-center gap-3">
+          <button (click)="toggleDarkMode()" class="text-slate-800 dark:text-white">
+            <svg *ngIf="isDarkMode()" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="w-6 h-6"><path stroke-linecap="round" stroke-linejoin="round" d="M12 3v2.25m6.364.386l-1.591 1.591M21 12h-2.25m-.386 6.364l-1.591-1.591M12 18.75V21m-4.773-4.227l-1.591 1.591M5.25 12H3m4.227-4.773L5.636 5.636M15.75 12a3.75 3.75 0 11-7.5 0 3.75 3.75 0 017.5 0z" /></svg>
+            <svg *ngIf="!isDarkMode()" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="w-6 h-6"><path stroke-linecap="round" stroke-linejoin="round" d="M21.752 15.002A9.718 9.718 0 0118 15.75c-5.385 0-9.75-4.365-9.75-9.75 0-1.33.266-2.597.748-3.752A9.753 9.753 0 003 11.25C3 16.635 7.365 21 12.75 21a9.753 9.753 0 009.002-5.998z" /></svg>
+          </button>
+          
+          <a routerLink="/notifications" class="relative text-slate-800 dark:text-white p-1">
+            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="w-7 h-7"><path stroke-linecap="round" stroke-linejoin="round" d="M21 8.25c0-2.485-2.099-4.5-4.688-4.5-1.935 0-3.597 1.126-4.312 2.733-.715-1.607-2.377-2.733-4.313-2.733C5.1 3.75 3 5.765 3 8.25c0 7.22 9 12 9 12s9-4.78 9-12z" /></svg>
+            <div *ngIf="unreadCount() > 0" class="absolute top-0 right-0 w-2.5 h-2.5 bg-red-500 rounded-full border-2 border-white dark:border-slate-900"></div>
+          </a>
         </div>
       </header>
 
-      <!-- Main Content Outlet -->
-      <main class="flex-grow max-w-5xl w-full mx-auto p-4 sm:p-6">
-        <router-outlet></router-outlet>
+      <!-- MAIN CONTENT OUTLET -->
+      <!-- margin-left pushes content right on desktop. pt and pb for mobile top/bottom bars -->
+      <main class="flex-grow w-full md:ml-20 lg:ml-64 pt-14 pb-14 md:pt-0 md:pb-0 min-h-screen relative">
+        <div class="max-w-5xl mx-auto p-0 sm:p-4 md:p-6 w-full">
+          <router-outlet></router-outlet>
+        </div>
       </main>
+
+      <!-- MOBILE BOTTOM NAVIGATION (Hidden on Desktop) -->
+      <nav class="md:hidden fixed bottom-0 inset-x-0 h-14 bg-white dark:bg-slate-900 border-t border-slate-200 dark:border-slate-800 z-40 flex items-center justify-around px-2">
+        <a routerLink="/" [routerLinkActiveOptions]="{exact: true}" routerLinkActive="text-slate-900 dark:text-white" class="p-2 text-slate-500 transition-colors">
+          <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="w-7 h-7"><path stroke-linecap="round" stroke-linejoin="round" d="M2.25 12l8.954-8.955c.44-.439 1.152-.439 1.591 0L21.75 12M4.5 9.75v10.125c0 .621.504 1.125 1.125 1.125H9.75v-4.875c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125V21h4.125c.621 0 1.125-.504 1.125-1.125V9.75M8.25 21h8.25" /></svg>
+        </a>
+        <a routerLink="/search" routerLinkActive="text-slate-900 dark:text-white" class="p-2 text-slate-500 transition-colors">
+          <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="w-7 h-7"><path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-5.197-5.197m0 0A7.5 7.5 0 105.196 5.196a7.5 7.5 0 0010.604 10.604z" /></svg>
+        </a>
+        <a routerLink="/explore" routerLinkActive="text-slate-900 dark:text-white" class="p-2 text-slate-500 transition-colors">
+          <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="w-7 h-7"><path stroke-linecap="round" stroke-linejoin="round" d="M12 21a9.004 9.004 0 008.716-6.747M12 21a9.004 9.004 0 01-8.716-6.747M12 21c2.485 0 4.5-4.03 4.5-9S14.485 3 12 3m0 18c-2.485 0-4.5-4.03-4.5-9s2.015-9 4.5-9 M3 9.75h18" /></svg>
+        </a>
+        <a routerLink="/chat" routerLinkActive="text-slate-900 dark:text-white" class="p-2 text-slate-500 transition-colors relative">
+          <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="w-7 h-7"><path stroke-linecap="round" stroke-linejoin="round" d="M8.625 12a.375.375 0 11-.75 0 .375.375 0 01.75 0zm0 0H8.25m4.125 0a.375.375 0 11-.75 0 .375.375 0 01.75 0zm0 0H12m4.125 0a.375.375 0 11-.75 0 .375.375 0 01.75 0zm0 0h-.375M21 12c0 4.556-4.03 8.25-9 8.25a9.764 9.764 0 01-2.555-.337A5.972 5.972 0 015.41 20.97a5.969 5.969 0 01-.474-.065 4.48 4.48 0 00.978-2.025c.09-.457-.133-.901-.467-1.226C3.93 16.178 3 14.189 3 12c0-4.556 4.03-8.25 9-8.25s9 3.694 9 8.25z" /></svg>
+          <div *ngIf="chatService.totalUnreadCount() > 0" class="absolute top-1.5 right-1 w-2.5 h-2.5 bg-red-500 rounded-full border-2 border-white dark:border-slate-900"></div>
+        </a>
+        <a routerLink="/profile" routerLinkActive="ring-2 ring-slate-900 dark:ring-white" class="w-7 h-7 rounded-full overflow-hidden transition-all">
+          <img [src]="currentUser().avatarUrl || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150'" alt="Profile" class="w-full h-full object-cover">
+        </a>
+      </nav>
 
       <!-- Create Post Modal Dialog -->
       <div 
@@ -285,7 +271,7 @@ import { ChatService } from 'src/app/features/chat/services/chat.service';
     <!-- Global Toast Notification -->
     <div
       *ngIf="toastMessage()"
-      class="fixed bottom-6 left-1/2 -translate-x-1/2 z-[100] animate-slide-up"
+      class="fixed bottom-20 md:bottom-6 left-1/2 -translate-x-1/2 z-[100] animate-slide-up"
     >
       <!-- Success -->
       <div *ngIf="toastType() === 'success'" class="flex items-center gap-3 px-6 py-3.5 bg-emerald-600 text-white rounded-2xl shadow-2xl shadow-emerald-500/30 font-bold text-sm">
@@ -318,6 +304,8 @@ import { ChatService } from 'src/app/features/chat/services/chat.service';
     .animate-slide-up {
       animation: slideUp 0.3s ease-out forwards;
     }
+    
+    @import url('https://fonts.googleapis.com/css2?family=Pacifico&display=swap');
   `],
   changeDetection: ChangeDetectionStrategy.OnPush
 })
@@ -398,19 +386,18 @@ export class MainLayoutComponent {
   }
 
   submitPost() {
-    if (this.caption.trim()) {
-      this.isPosting.set(true);
-      this.mockData.addPost(this.caption, this.selectedFile()).subscribe({
-        next: () => {
-          this.isPosting.set(false);
-          this.closeCreateModal();
-          this.router.navigate(['/']);
-        },
-        error: () => {
-          this.isPosting.set(false);
-          this.mockData.showToast('Failed to publish post. Please try again.', 'error');
-        }
-      });
-    }
+    if (!this.caption.trim() || this.isPosting()) return;
+
+    this.isPosting.set(true);
+    this.mockData.addPost(this.caption, this.selectedFile()).subscribe({
+      next: () => {
+        this.closeCreateModal();
+        this.mockData.showToast('Post created successfully!');
+      },
+      error: () => {
+        this.isPosting.set(false);
+        this.mockData.showToast('Failed to create post. Please try again.', 'error');
+      }
+    });
   }
 }

@@ -905,23 +905,26 @@ export class SocialService {
 
   // ─── UPDATE PROFILE (MOCK — TODO: PATCH /v1/users/profile/) ──────────────
 
-  updateProfile(bio: string, avatarUrl: string): void {
-    // Optimistic local update
-    this.authService.updateCurrentUser({ bio, avatarUrl });
+  updateProfile(bio: string, avatarFile: File | null): void {
+    // Optimistic local update (using local preview URL or existing)
+    const localAvatarUrl = avatarFile ? URL.createObjectURL(avatarFile) : null;
+    this.authService.updateCurrentUser({ bio, avatarUrl: localAvatarUrl || this.currentUser().avatarUrl });
     localStorage.setItem('logged_in_bio', bio);
-    if (avatarUrl) localStorage.setItem('logged_in_avatar', avatarUrl);
 
-    const body: any = { bio };
-    if (avatarUrl) body.avatar = avatarUrl;
+    const formData = new FormData();
+    formData.append('bio', bio);
+    if (avatarFile) {
+      formData.append('avatar', avatarFile);
+    }
 
     this.http.patch<{ success: boolean; data?: any }>(
-      `${environment.apiUrl}/v1/users/profile/`, body
+      `${environment.apiUrl}/v1/users/profile/`, formData
     ).subscribe({
       next: (res) => {
         if (res?.data) {
           const d = res.data;
           const updatedBio = d.bio ?? bio;
-          const updatedAvatar = d.avatar ?? avatarUrl;
+          const updatedAvatar = d.avatar ?? (localAvatarUrl || this.currentUser().avatarUrl);
           this.authService.updateCurrentUser({ bio: updatedBio, avatarUrl: updatedAvatar });
           localStorage.setItem('logged_in_bio', updatedBio);
           if (updatedAvatar) localStorage.setItem('logged_in_avatar', updatedAvatar);
