@@ -208,7 +208,14 @@ import { Subscription } from 'rxjs';
       <!-- WebRTC Call Overlay -->
       <div *ngIf="callStatus() !== 'idle'" class="fixed inset-0 bg-slate-900/95 backdrop-blur-md z-[100] flex flex-col items-center justify-center">
         <!-- Remote Video -->
-        <video #remoteVideo autoplay playsinline [class.hidden]="callType() === 'audio' || callStatus() !== 'connected'" class="absolute inset-0 w-full h-full object-cover"></video>
+        <div *ngIf="callType() === 'video' && callStatus() === 'connected'" class="absolute inset-0 flex items-center justify-center bg-slate-900">
+          <video #remoteVideo autoplay playsinline class="absolute inset-0 w-full h-full object-cover"></video>
+          <!-- Show connecting indicator if stream not ready -->
+          <div *ngIf="!remoteStream" class="z-10 flex flex-col items-center justify-center space-y-4">
+             <div class="w-12 h-12 border-4 border-violet-500 border-t-transparent rounded-full animate-spin"></div>
+             <p class="text-violet-300 font-medium">Đang kết nối video...</p>
+          </div>
+        </div>
         
         <!-- Local Video (PIP) -->
         <div *ngIf="callStatus() === 'connected' && callType() === 'video'" class="absolute top-6 right-6 w-32 md:w-48 aspect-[3/4] bg-slate-800 rounded-2xl overflow-hidden shadow-2xl border-2 border-slate-700">
@@ -324,7 +331,7 @@ export class ChatRoomComponent implements OnInit, OnDestroy {
 
   private peerConnection: RTCPeerConnection | null = null;
   private localStream: MediaStream | null = null;
-  private remoteStream: MediaStream | null = null;
+  remoteStream: MediaStream | null = null;
   private iceServers = {
     iceServers: [{ urls: 'stun:stun.l.google.com:19302' }]
   };
@@ -555,9 +562,9 @@ export class ChatRoomComponent implements OnInit, OnDestroy {
       await this.peerConnection!.setLocalDescription(offer);
 
       this.chatService.sendWebRTCSignal('webrtc_offer', targetId, { sdp: offer.sdp, type: offer.type, callType: type });
-    } catch (err) {
+    } catch (err: any) {
       console.error('Failed to start call', err);
-      this.chatService.showToast('Could not access camera or microphone', 'error');
+      this.chatService.showToast('Lỗi Camera/Mic: ' + (err.message || 'Thiết bị không hỗ trợ hoặc bị từ chối quyền truy cập.'), 'error');
       this.cleanupCall();
     }
   }
@@ -620,6 +627,7 @@ export class ChatRoomComponent implements OnInit, OnDestroy {
     this.peerConnection.ontrack = (event) => {
       this.remoteStream = event.streams[0];
       this.attachRemoteStream();
+      this.cdr.detectChanges();
     };
 
     this.peerConnection.onconnectionstatechange = () => {
@@ -689,8 +697,9 @@ export class ChatRoomComponent implements OnInit, OnDestroy {
       await this.peerConnection!.setLocalDescription(answer);
 
       this.chatService.sendWebRTCSignal('webrtc_answer', caller.id, { sdp: answer.sdp, type: answer.type });
-    } catch (err) {
+    } catch (err: any) {
       console.error('Failed to accept call', err);
+      this.chatService.showToast('Lỗi Camera/Mic: ' + (err.message || 'Thiết bị không hỗ trợ hoặc bị từ chối quyền truy cập.'), 'error');
       this.declineCall();
     }
   }
